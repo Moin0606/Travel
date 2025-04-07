@@ -5,6 +5,7 @@ const {
   requestMatch,
   respondToMatch,
   getUserPosts,
+  getMatchedUsers
 } = require("../controllers/travelPostController");
 const protect = require("../middleware/authMiddleware");
 
