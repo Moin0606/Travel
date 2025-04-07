@@ -9,9 +9,29 @@ const UserSchema = new mongoose.Schema({
   age: { type: Number },
   address: { type: String },
   phoneNumber: { type: String },
-  verificationDocument: { type: String },
   isVerified: { type: Boolean, default: false },
   role: { type: String, default: "user" },
+
+  // Track posts this user has matched with
+  matchedPosts: [
+    {
+      postId: { type: mongoose.Schema.Types.ObjectId, ref: "TravelPost" },
+      matchedAt: { type: Date, default: Date.now },
+      status: {
+        type: String,
+        enum: ["pending", "accepted", "rejected"],
+        default: "pending",
+      },
+    },
+  ],
+
+  // Travel preferences (for matching algorithm)
+  travelPreferences: {
+    destinations: [{ type: String }],
+    budgetRange: { min: Number, max: Number },
+    travelStyles: [{ type: String }], // e.g., "solo", "group", "luxury"
+  },
+
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

@@ -1,15 +1,21 @@
+const mongoose = require("mongoose");
+
 const MatchSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  preferences: {
-    destination: { type: String },
-    travelPartnerType: { type: String },
-    travelStyle: { type: String },
+  postId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "TravelPost",
+    required: true,
   },
-  matches: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  matchScore: { type: Number }, // e.g., 85 (out of 100)
+  status: {
+    type: String,
+    enum: ["pending", "accepted", "rejected"],
+    default: "pending",
+  },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
 });
 
 const Match = mongoose.model("Match", MatchSchema);
 
-module.exports = { User, TravelPost, Trip, Chat, Match };
+module.exports = Match;
