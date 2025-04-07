@@ -1,8 +1,9 @@
 const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateToken } = require("../config/utils");
 
-exports.registerUser = async (req, res) => {
+const registerUser = async (req, res) => {
   const {
     username,
     email,
@@ -12,20 +13,25 @@ exports.registerUser = async (req, res) => {
     address,
     phoneNumber,
     verificationDocument,
-  } = req.body;
+  }  = req.body;
 
   try {
     if (!username || !email || !password) {
-      return res.status(400).json({ message: "Username, email, and password are required" });
+      return res.status(400).json({ message: "All fields are required" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    // const user = await User.create({
+    //   username,
+    //   email,
+    //   password: hashedPassword,
+    // });
+    const newUser = new User({
       username,
       email,
       password: hashedPassword,
@@ -35,15 +41,27 @@ exports.registerUser = async (req, res) => {
       phoneNumber,
       verificationDocument,
     });
-
-    res.status(201).json({ message: "User registered successfully", user });
+    if (newUser) {
+      await newUser.save();
+      generateToken(newUser._id, res);
+      return res.status(201).json({
+        _id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+      });
+    } else {
+      return res.status(400).json({ message: "User registration failed" });
+    }
+    // res.status(201).json({ message: "User registered successfully", user });
   } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(500).json({ message: "Error registering user", error: error.message });
+    console.error("Registration Error in register controller:", error);
+    res
+      .status(500)
+      .json({ message: "Error registering user", error: error.message });
   }
 };
 
-exports.loginUser = async (req, res) => {
+const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -54,12 +72,48 @@ exports.loginUser = async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+    // Generate JWT token
+    generateToken(user._id, res);
+    
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', 'http://localhost:8080');
+    
+    res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      token: generateToken(user._id, res),
     });
-
-    res.status(200).json({ token, user });
   } catch (error) {
-    res.status(500).json({ message: "Login error", error });
+    res.status(400).json({ message: error.message });
   }
+};
+
+const logout = async (req, res) => {
+  try {
+    res.cookie("jwt", "", { maxAge: 0 });
+    console.log("Logout Successfully");
+    return res.status(200).json({ message: "Logout Successfully" });
+  } catch (error) {
+    console.log("Error in Logout controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const checkAuth = (req, res) => {
+  try {
+    res.status(200).json(req.user);
+    // console.log("req.user : ", req.user);
+  } catch (error) {
+    console.log("Error in checkAuth controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  logout,
+  // updateProfile,
+  checkAuth,
 };
