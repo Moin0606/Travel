@@ -1,83 +1,107 @@
 const express = require("express");
+const { upload }= require('../middleware/uploadMiddleware');
 const {
   createPost,
   getAllPosts,
   requestMatch,
   respondToMatch,
   getUserPosts,
-  getMatchedUsers
+  getMatchedUsers,
+  closePost
 } = require("../controllers/travelPostController");
 const protect = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 /**
- * @route   POST /api/posts/create
- * @desc    Create a new travel post
+ * @route   POST /api/posts
+ * @desc    Create a new travel post with optional images
  * @access  Private
- * @body    {String} destination (required)
- *          {Object} travelDates {start: Date, end: Date} (required)
- *          {String} description
- *          {Number} budget
- *          {String} travelStyle
- *          {Object} requirements {minAge, maxAge, genderPreference}
- * @returns {Object} Created post object
+ * @body    {String} destination - Required
+ *          {Object} travelDates - Required {start: Date, end: Date}
+ *          {String} [description]
+ *          {Number} [budget]
+ *          {String} [travelStyle]
+ *          {Object} [requirements] - {minAge, maxAge, genderPreference}
+ * @files   {Array} [images] - Up to 5 images
+ * @returns {Object} 201 - Newly created post with populated creator
+ * @returns {Object} 400 - Invalid input data
+ * @returns {Object} 500 - Server error
  */
-router.post("/create", protect, createPost);
+router.post("/", protect, upload.array('images', 5), createPost);
 
 /**
- * @route   GET /api/posts/
- * @desc    Get all travel posts with populated creator and match info
+ * @route   GET /api/posts
+ * @desc    Get all active travel posts with filtering options
  * @access  Public
- * @returns {Array} List of all travel posts
+ * @query   {String} [destination] - Filter by destination (case-insensitive)
+ *          {Date} [startDate] - Filter by trips starting after this date
+ *          {Date} [endDate] - Filter by trips ending before this date
+ *          {String} [style] - Filter by travel style
+ * @returns {Array} 200 - Array of travel posts with populated creator and matches
+ * @returns {Object} 500 - Server error
  */
 router.get("/", getAllPosts);
 
 /**
  * @route   GET /api/posts/my-posts
- * @desc    Get all posts created by current user
+ * @desc    Get all posts created by the authenticated user
  * @access  Private
- * @returns {Array} List of user's travel posts with match requests
+ * @returns {Array} 200 - Array of user's posts with populated match data
+ * @returns {Object} 500 - Server error
  */
 router.get("/my-posts", protect, getUserPosts);
 
 /**
- * @route   POST /api/posts/request-match/:postId
- * @desc    Send match request to a travel post
+ * @route   POST /api/posts/:postId/matches
+ * @desc    Request to match with a travel post
  * @access  Private
- * @params  {String} postId (required)
- * @returns {Object} Updated post with new match request
+ * @params  {String} postId - Required ID of the post to match with
+ * @returns {Object} 200 - Updated post with new match request
+ * @returns {Object} 400 - Already matched or invalid request
+ * @returns {Object} 404 - Post not found
+ * @returns {Object} 500 - Server error
  */
-router.post("/request-match/:postId", protect, requestMatch);
+router.post("/:postId/matches", protect, requestMatch);
 
 /**
- * @route   PUT /api/posts/respond-match/:postId
- * @desc    Accept or reject a match request
+ * @route   PUT /api/posts/:postId/matches/:matchId
+ * @desc    Respond to a match request (accept/reject)
  * @access  Private (post creator only)
- * @params  {String} postId (required)
- * @body    {String} userId (required) - ID of user who requested match
- *          {String} response (required) - "accept" or "reject"
- * @returns {Object} Updated post with modified match status
+ * @params  {String} postId - Required ID of the post
+ *          {String} matchId - Required ID of the match request
+ * @body    {String} response - Required "accept" or "reject"
+ * @returns {Object} 200 - Updated post with modified match status
+ * @returns {Object} 403 - Not authorized
+ * @returns {Object} 404 - Post or match not found
+ * @returns {Object} 500 - Server error
  */
-router.put("/respond-match/:postId", protect, respondToMatch);
+router.put("/:postId/matches/:matchId", protect, respondToMatch);
 
 /**
  * @route   GET /api/posts/:postId/matches
- * @desc    Get all matched users for a specific travel post
- * @access  Private (only post creator or matched users should access)
- * 
- * @params  {String} postId - Required. ID of the travel post
- * @query   {String} [status] - Optional. Filter matches by status ("pending"/"accepted"/"rejected")
- * 
- * @returns {Object} On success:
- *                   - matchedUsers: {Array} List of matched users with populated user details
- *                   - count: {Number} Total number of matches (after filtering)
- * @returns {Object} On error:
- *                   - message: {String} Error description
- * 
- * @example GET /api/posts/507f1f77bcf86cd799439011/matches
- * @example GET /api/posts/507f1f77bcf86cd799439011/matches?status=accepted
+ * @desc    Get matched users for a specific post with filtering
+ * @access  Private (post creator or matched users only)
+ * @params  {String} postId - Required ID of the post
+ * @query   {String} [status] - Filter by status ("pending"/"accepted"/"rejected")
+ *          {String} [sort] - Sort by "newest"
+ * @returns {Object} 200 - {matchedUsers: Array, count: Number}
+ * @returns {Object} 403 - Not authorized
+ * @returns {Object} 404 - Post not found
+ * @returns {Object} 500 - Server error
  */
-router.get('/:postId/matches', protect, getMatchedUsers);
+router.get("/:postId/matches", protect, getMatchedUsers);
+
+/**
+ * @route   PUT /api/posts/:postId/close
+ * @desc    Close a travel post (mark as inactive)
+ * @access  Private (post creator only)
+ * @params  {String} postId - Required ID of the post
+ * @returns {Object} 200 - Updated post with status "closed"
+ * @returns {Object} 403 - Not authorized
+ * @returns {Object} 404 - Post not found
+ * @returns {Object} 500 - Server error
+ */
+router.put("/:postId/close", protect, closePost);
 
 module.exports = router;

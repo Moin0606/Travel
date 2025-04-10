@@ -4,7 +4,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const connectDB = require("./config/db");
 const http = require("http");
-const configureSocket = require("./config/socketConfig");
+const { configureSocket } = require("./config/socketConfig");
 const cookieParser = require('cookie-parser');
 
 const userRoutes = require("./routes/userRoutes");

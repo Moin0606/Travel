@@ -1,6 +1,9 @@
 const TravelPost = require("../models/travelPostModel");
+const User = require("../models/userModel");
+const { emitNotification }= require('../config/socketConfig');
+const { findPotentialMatches } = require("../utils/matchingAlgorithm");
 
-// Create a Travel Post
+// Create a Travel Post with Image Upload Support
 exports.createPost = async (req, res) => {
   try {
     const { destination, travelDates, description, budget, travelStyle, requirements } = req.body;
@@ -13,11 +16,25 @@ exports.createPost = async (req, res) => {
       budget,
       travelStyle,
       requirements,
-      status: "active" // Default status
+      images: req.files?.map(file => file.path) || [], // Handle uploaded files
+      status: "active"
     });
 
     await newPost.save();
-    res.status(201).json({ message: "Travel post created successfully", post: newPost });
+    
+    // Find and notify potential matches
+    const matches = await findPotentialMatches(newPost._id);
+    matches.forEach(user => {
+      emitNotification(user._id, 'new_post', {
+        postId: newPost._id,
+        message: `New trip to ${newPost.destination} matches your preferences`
+      });
+    });
+
+    res.status(201).json({ 
+      message: "Travel post created successfully", 
+      post: await newPost.populate('creatorId', 'username profilePicture')
+    });
   } catch (error) {
     res.status(500).json({ 
       message: "Error creating travel post", 
@@ -26,13 +43,22 @@ exports.createPost = async (req, res) => {
   }
 };
 
-// Get All Travel Posts
+// Get All Travel Posts with Advanced Filtering
 exports.getAllPosts = async (req, res) => {
   try {
-    const posts = await TravelPost.find()
-      .populate("creatorId", "username email profilePicture")
-      .populate("matchedUsers.userId", "username profilePicture");
+    const { destination, startDate, endDate, style } = req.query;
+    const filter = { status: "active" };
     
+    if (destination) filter.destination = new RegExp(destination, 'i');
+    if (startDate) filter['travelDates.start'] = { $gte: new Date(startDate) };
+    if (endDate) filter['travelDates.end'] = { $lte: new Date(endDate) };
+    if (style) filter.travelStyle = style;
+
+    const posts = await TravelPost.find(filter)
+      .populate("creatorId", "username email profilePicture")
+      .populate("matchedUsers.userId", "username profilePicture")
+      .sort({ createdAt: -1 });
+
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ 
@@ -42,26 +68,25 @@ exports.getAllPosts = async (req, res) => {
   }
 };
 
-// Request a Match
+// Enhanced Match Request with Notifications
 exports.requestMatch = async (req, res) => {
   try {
     const { postId } = req.params;
-    const post = await TravelPost.findById(postId);
+    const post = await TravelPost.findById(postId).populate('creatorId');
 
-    if (!post) {
-      return res.status(404).json({ message: "Travel post not found" });
+    if (!post) return res.status(404).json({ message: "Travel post not found" });
+    if (post.creatorId._id.equals(req.user.id)) {
+      return res.status(400).json({ message: "Cannot match with your own post" });
     }
 
-    // Check if user already matched with this post
     const existingMatch = post.matchedUsers.find(
-      match => match.userId.toString() === req.user.id
+      match => match.userId.equals(req.user.id)
     );
     
     if (existingMatch) {
       return res.status(400).json({ message: "You've already matched with this post" });
     }
 
-    // Add new match request
     post.matchedUsers.push({
       userId: req.user.id,
       status: "pending"
@@ -69,9 +94,19 @@ exports.requestMatch = async (req, res) => {
 
     await post.save();
     
+    // Notify post owner
+    emitNotification(post.creatorId._id, 'new_match', {
+      postId: post._id,
+      userId: req.user.id,
+      message: `${req.user.username} wants to join your trip to ${post.destination}`
+    });
+
     res.status(200).json({ 
       message: "Match request sent successfully", 
-      post 
+      post: await TravelPost.populate(post, {
+        path: 'matchedUsers.userId',
+        select: 'username profilePicture'
+      })
     });
   } catch (error) {
     res.status(500).json({ 
@@ -81,38 +116,40 @@ exports.requestMatch = async (req, res) => {
   }
 };
 
-// Accept/Reject a Match Request
+// Enhanced Match Response with Notifications
 exports.respondToMatch = async (req, res) => {
   try {
-    const { postId } = req.params;
-    const { userId, response } = req.body; // response = "accept" or "reject"
+    const { postId, matchId } = req.params;
+    const { response } = req.body;
 
     const post = await TravelPost.findById(postId);
-    if (!post) {
-      return res.status(404).json({ message: "Travel post not found" });
-    }
+    if (!post) return res.status(404).json({ message: "Travel post not found" });
 
     // Verify the requester is the post creator
-    if (post.creatorId.toString() !== req.user.id) {
+    if (!post.creatorId.equals(req.user.id)) {
       return res.status(403).json({ message: "Unauthorized action" });
     }
 
-    // Find the match request
-    const matchRequest = post.matchedUsers.find(
-      match => match.userId.toString() === userId
-    );
+    const match = post.matchedUsers.id(matchId);
+    if (!match) return res.status(404).json({ message: "Match request not found" });
 
-    if (!matchRequest) {
-      return res.status(404).json({ message: "Match request not found" });
-    }
-
-    // Update status based on response
-    matchRequest.status = response === "accept" ? "accepted" : "rejected";
+    // Update status
+    match.status = response === "accept" ? "accepted" : "rejected";
     await post.save();
 
+    // Notify the matched user
+    emitNotification(match.userId, 'match_update', {
+      postId: post._id,
+      status: match.status,
+      message: `Your match request for ${post.destination} was ${match.status}`
+    });
+
     res.status(200).json({ 
-      message: `Match request ${response === "accept" ? "accepted" : "rejected"} successfully`,
-      post 
+      message: `Match request ${match.status} successfully`,
+      post: await TravelPost.populate(post, {
+        path: 'matchedUsers.userId',
+        select: 'username profilePicture'
+      })
     });
   } catch (error) {
     res.status(500).json({ 
@@ -122,11 +159,41 @@ exports.respondToMatch = async (req, res) => {
   }
 };
 
-// Get Posts by User
+// Close a Travel Post
+exports.closePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const post = await TravelPost.findById(postId);
+
+    if (!post) return res.status(404).json({ message: "Travel post not found" });
+    if (!post.creatorId.equals(req.user.id)) {
+      return res.status(403).json({ message: "Unauthorized action" });
+    }
+
+    post.status = "closed";
+    await post.save();
+
+    res.status(200).json({ 
+      message: "Post closed successfully",
+      post 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Error closing post", 
+      error: error.message 
+    });
+  }
+};
+
+// Get User's Posts with Enhanced Data
 exports.getUserPosts = async (req, res) => {
   try {
     const posts = await TravelPost.find({ creatorId: req.user.id })
-      .populate("matchedUsers.userId", "username profilePicture");
+      .populate({
+        path: 'matchedUsers.userId',
+        select: 'username profilePicture age gender'
+      })
+      .sort({ createdAt: -1 });
     
     res.status(200).json(posts);
   } catch (error) {
@@ -137,28 +204,32 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
-// Get matched users for a specific post
+// Get Matched Users with Advanced Filtering
 exports.getMatchedUsers = async (req, res) => {
   try {
     const post = await TravelPost.findById(req.params.postId)
       .populate({
         path: 'matchedUsers.userId',
-        select: 'username profilePicture age gender' // Include fields you want to display
-      })
-      .select('matchedUsers'); // Only return matchedUsers array
+        select: 'username profilePicture age gender'
+      });
 
-    if (!post) {
-      return res.status(404).json({ message: "Travel post not found" });
+    if (!post) return res.status(404).json({ message: "Travel post not found" });
+
+    // Verify access rights
+    if (!post.creatorId.equals(req.user.id) && 
+        !post.matchedUsers.some(m => m.userId._id.equals(req.user.id))) {
+      return res.status(403).json({ message: "Unauthorized access" });
     }
 
-    // Filter based on status if query parameter exists
-    const statusFilter = req.query.status; // e.g., ?status=accepted
+    const { status, sort } = req.query;
     let matchedUsers = post.matchedUsers;
-    
-    if (statusFilter) {
-      matchedUsers = post.matchedUsers.filter(
-        match => match.status === statusFilter
-      );
+
+    if (status) {
+      matchedUsers = matchedUsers.filter(m => m.status === status);
+    }
+
+    if (sort === 'newest') {
+      matchedUsers.sort((a, b) => b.matchedAt - a.matchedAt);
     }
 
     res.status(200).json({
