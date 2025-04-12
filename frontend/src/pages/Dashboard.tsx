@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LogOut,
@@ -29,18 +29,30 @@ import { useToast } from "@/hooks/use-toast";
 import PostFeed from "@/components/dashboard/PostFeed";
 import PostModal from "@/components/dashboard/PostModal";
 import Connect from "@/components/dashboard/Connect";
+import Message from "@/components/dashboard/Message";
+import { useAuthStore } from "../store/useAuthStore";
 
 const Dashboard = () => {
+  const { logout, authUser } = useAuthStore();
+
   const navigate = useNavigate();
   const [showEmail, setShowEmail] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"explore" | "matched">(
+  const [currentView, setCurrentView] = useState<"explore" | "matched" | "message">(
     "explore"
   );
+  const [loggedInUser, setLoggedInUser] = useState("");
+  useEffect(() => {
+    setLoggedInUser(localStorage.getItem("token"));
+  }, []);
   const { toast } = useToast();
 
   const handleLogout = () => {
-    navigate("/");
+    logout();
+    localStorage.clear();
+    setLoggedInUser("");
+    navigate('/', { state: { fromLogout: true } });
+    window.location.reload();
   };
 
   const toggleProfileDisplay = () => {
@@ -100,7 +112,7 @@ const Dashboard = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Chat"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => setCurrentView("message")}
                 >
                   <MessageSquare />
                   <span>Chat</span>
@@ -192,7 +204,7 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {currentView === "explore" ? <PostFeed /> : <Connect />}
+              {currentView === "explore" ? <PostFeed /> : <Message />}
             </div>
           </main>
         </div>
