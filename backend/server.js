@@ -6,12 +6,12 @@ const connectDB = require("./config/db");
 const http = require("http");
 const configureSocket = require("./config/socketConfig");
 const cookieParser = require('cookie-parser');
-
+const protect = require("./middleware/authMiddleware");
 const userRoutes = require("./routes/userRoutes");
 const travelPostRoutes = require("./routes/travelPostRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 // const messageRoutes = require("./routes/messageRoutes");
-//const matchRoutes = require("./routes/matchRoutes");
+const matchRoutes = require("./routes/matchRoutes");
 
 connectDB(); // Connect to MongoDB
 
@@ -34,11 +34,11 @@ app.use(cors({
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/posts/", travelPostRoutes);
-app.use("/api/trip", tripRoutes);
+app.use("/api/trip", protect, tripRoutes);
 // app.use("/api/messages", messageRoutes);
 
 //app.use("/api/chats", chatRoutes);
-//app.use("/api/matches", matchRoutes);
+app.use("/api/matches", protect, matchRoutes);
 
 // Default Route
 app.get("/", (req, res) => {
