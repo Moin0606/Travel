@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const TravelPost = require("../models/travelPostModel");
+const Match = require("../models/matchModel");
 
 const MATCH_SCORE_THRESHOLD = 50;
 
@@ -17,21 +18,20 @@ async function findPotentialMatches(postId) {
       throw new Error("Travel post not found");
     }
 
+    // Construct gender condition
     const genderCondition =
       travelPost.requirements.genderPreference === "any"
         ? {}
         : { gender: travelPost.requirements.genderPreference };
 
-    console.log(genderCondition);
-  
+    // Find users who meet the post's requirements
     const users = await User.find({
-        "travelPreferences.destinations": travelPost.destination,
-        "travelPreferences.budgetRange.min": { $lte: 1500 },
-        age: { $gte: travelPost.requirements.minAge, $lte: travelPost.requirements.maxAge },
-        ...genderCondition
+      "travelPreferences.destinations": travelPost.destination,
+      "travelPreferences.budgetRange.min": { $lte: travelPost.budget },
+      "travelPreferences.budgetRange.max": { $gte: travelPost.budget },
+      age: { $gte: travelPost.requirements.minAge, $lte: travelPost.requirements.maxAge },
+      ...genderCondition,
     });
-
-    console.log("Fetched Users:", users);
 
     // Calculate match scores for each user
     const matches = users.map((user) => ({
@@ -40,7 +40,19 @@ async function findPotentialMatches(postId) {
     }));
 
     // Filter matches with a score above the threshold
-    return matches.filter((match) => match.matchScore > MATCH_SCORE_THRESHOLD);
+    const filteredMatches = matches.filter((match) => match.matchScore > MATCH_SCORE_THRESHOLD);
+
+    // Create Match entries in the database
+    for (const match of filteredMatches) {
+      await Match.create({
+        userId: match.userId,
+        postId: travelPost._id,
+        matchScore: match.matchScore,
+        status: "pending", // Default status
+      });
+    }
+
+    return filteredMatches;
   } catch (error) {
     console.error("Error finding potential matches:", error.message);
     throw new Error(`Failed to find potential matches: ${error.message}`);

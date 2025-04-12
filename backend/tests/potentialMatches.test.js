@@ -3,22 +3,21 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 const { findPotentialMatches } = require("../helpers/matchingAlgorithm");
 const User = require("../models/userModel");
 const TravelPost = require("../models/travelPostModel");
+const Match = require("../models/matchModel");
+const approveMatch = require("../helpers/approveMatch"); 
+const Trip = require("../models/tripModel"); 
+const connectDB = require("../config/db");
+require("dotenv").config();
 
 describe("findPotentialMatches", () => {
   let mongoServer;
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    connectDB();
   });
 
   afterAll(async () => {
     await mongoose.disconnect();
-    await mongoServer.stop();
   });
 
   beforeEach(async () => {
@@ -162,5 +161,75 @@ describe("findPotentialMatches", () => {
 
     // Assertions
     expect(matches.length).toBe(0); // No matches found
+  });
+
+  it("should create a trip when both users approve the match", async () => {
+    const user1Id = new mongoose.Types.ObjectId();
+    const user2Id = new mongoose.Types.ObjectId();
+    console.log("user1", user1Id);
+    console.log("user2", user2Id);
+    // Create mock users
+    const user1 = new User({
+      _id: user1Id,
+      username: "Alice",
+      email: "alice@example.com",
+      password: "password123",
+      age: 30,
+      gender: "female",
+      travelPreferences: {
+        destinations: ["Paris"],
+        budgetRange: { min: 1000, max: 2000 },
+        travelStyles: ["luxury"],
+      },
+    });
+    await user1.save();
+    
+    const travelPost = new TravelPost({
+      creatorId: user1._id, // Set the creatorId to the first user's ID
+      destination: "Paris",
+      travelDates: { start: new Date(), end: new Date() },
+      description: "Exploring Paris!",
+      budget: 1500,
+      travelStyle: "luxury",
+      requirements: {
+        minAge: 25,
+        maxAge: 40,
+        genderPreference: "any",
+      },
+    });
+    await travelPost.save();
+
+    const user2 = new User({
+      _id: user2Id,
+      username: "Bob",
+      email: "bob@example.com",
+      password: "password123",
+      age: 35,
+      gender: "male",
+      travelPreferences: {
+        destinations: ["Paris"],
+        budgetRange: { min: 1000, max: 2000 },
+        travelStyles: ["luxury"],
+      },
+    });
+    await user2.save();
+  
+    // Find potential matches
+    const matches = await findPotentialMatches(travelPost._id);
+  
+    // Approve the match from both sides
+    const match1 = await Match.findOne({ userId: user1._id });
+    const match2 = await Match.findOne({ userId: user2._id });
+  
+    await approveMatch(user1._id, match1._id); // User 1 approves
+    await approveMatch(user2._id, match2._id); // User 2 approves
+  
+    // Verify that a trip was created
+    const trip = await Trip.findOne({ postId: travelPost._id });
+    expect(trip).toBeDefined();
+    expect(trip.participants.map((id) => id.toString())).toEqual(
+      expect.arrayContaining([user1._id.toString(), user2._id.toString()])
+    );
+    expect(trip.status).toBe("active");
   });
 });
