@@ -1,12 +1,89 @@
 const Match = require("../models/matchModel");
 const Trip = require("../models/tripModel");
 const TravelPost = require("../models/travelPostModel");
-
+const approveMatch = require("../helpers/approveMatch")
 // Update match status (e.g., accept or reject)
+exports.approveMatch = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.user._id; // Extract user ID from authentication middleware
+
+    // Call the helper function to approve the match
+    const updatedMatch = await approveMatch(userId, matchId);
+
+    res.status(200).json({
+      message: "Match approved successfully",
+      match: updatedMatch,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.createMatchManually = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { postId, userId } = req.body;
+
+    // Validate postId and userId
+    if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid postId or userId");
+    }
+
+    // Fetch the travel post
+    const travelPost = await TravelPost.findById(postId).session(session);
+    if (!travelPost) {
+      throw new Error("Travel post not found");
+    }
+
+    const creatorId = travelPost.creatorId;
+
+    // Ensure the requesting user is not the creator of the travel post
+    if (creatorId.toString() === userId.toString()) {
+      throw new Error("Cannot create a match with yourself");
+    }
+
+    // Create a match for the requesting user (status: accepted)
+    const matchForRequestingUser = new Match({
+      userId,
+      postId,
+      status: "accepted",
+    });
+    await matchForRequestingUser.save({ session });
+
+    // Create a match for the travel post creator (status: pending)
+    const matchForCreator = new Match({
+      userId: creatorId,
+      postId,
+      status: "pending",
+    });
+    await matchForCreator.save({ session });
+
+    await session.commitTransaction();
+    res.status(201).json({
+      message: "Matches created successfully",
+      matchForRequestingUser,
+      matchForCreator,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(500).json({ message: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
 exports.updateMatchStatus = async (req, res) => {
   try {
     const { matchId } = req.params;
     const { status } = req.body;
+
+    // Validate status
+    if (!["accepted", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
 
     const updatedMatch = await Match.findByIdAndUpdate(
       matchId,
@@ -16,27 +93,6 @@ exports.updateMatchStatus = async (req, res) => {
 
     if (!updatedMatch) {
       return res.status(404).json({ message: "Match not found" });
-    }
-
-    // Check if both parties have accepted the match
-    if (status === "accepted") {
-      const match = await Match.findById(matchId)
-        .populate("postId")
-        .populate("userId");
-
-      const otherMatch = await Match.findOne({
-        postId: match.postId._id,
-        userId: match.postId.creatorId,
-        status: "accepted",
-      });
-
-      if (otherMatch) {
-        // Both parties have accepted, create a trip
-        await createTrip(match.postId._id, [
-          match.userId._id,
-          match.postId.creatorId,
-        ]);
-      }
     }
 
     res.status(200).json(updatedMatch);
@@ -72,5 +128,46 @@ exports.getUserMatches = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to fetch matches", error: error.message });
+  }
+};
+
+exports.getOtherUserMatchStatus = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user._id; // Extract user ID from authentication middleware
+
+    // Validate postId
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId" });
+    }
+
+    // Fetch the travel post
+    const travelPost = await TravelPost.findById(postId);
+    if (!travelPost) {
+      return res.status(404).json({ message: "Travel post not found" });
+    }
+
+    // Determine the other user's ID
+    const otherUserId = travelPost.creatorId.toString() === userId.toString()
+      ? travelPost.creatorId // If the current user is the creator, the other user is the match's userId
+      : travelPost.creatorId; // Otherwise, the other user is the creator
+
+    // Find the match for the other user
+    const otherUserMatch = await Match.findOne({
+      postId,
+      userId: otherUserId,
+    });
+
+    if (!otherUserMatch) {
+      return res.status(404).json({ message: "No match found for the other user" });
+    }
+
+    // Return the status of the other user's match
+    res.status(200).json({
+      message: "Match status retrieved successfully",
+      status: otherUserMatch.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to retrieve match status", error: error.message });
   }
 };
