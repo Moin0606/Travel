@@ -40,8 +40,7 @@ describe("findPotentialMatches", () => {
         genderPreference: "any",
       },
     });
-    await travelPost.save();
-    console.log("Created Travel Post:", travelPost);
+    await travelPost.save(); 
 
     // Create mock users
     const user1 = new User({
@@ -70,53 +69,11 @@ describe("findPotentialMatches", () => {
         travelStyles: ["backpacking"],
       },
     });
-    await user2.save();
-    console.log("Created Users:", await User.find({}));
+    await user2.save(); 
 
-    // Log all users in the database
-    console.log("All Users in Database:", await User.find({}));
-
-    // Test individual query conditions
-    console.log(
-      "Users matching age:",
-      await User.find({
-        age: {
-          $gte: travelPost.requirements.minAge,
-          $lte: travelPost.requirements.maxAge,
-        },
-      })
-    );
-
-    const genderCondition =
-      travelPost.requirements.genderPreference === "any"
-        ? {}
-        : { gender: travelPost.requirements.genderPreference };
-    console.log("Users matching gender:", await User.find(genderCondition));
-
-    console.log(
-      "Users matching destinations:",
-      await User.find({
-        "travelPreferences.destinations": travelPost.destination,
-      })
-    );
-
-    console.log(
-      "Users matching budget min:",
-      await User.find({
-        "travelPreferences.budgetRange.min": { $lte: travelPost.budget },
-      })
-    );
-
-    console.log(
-      "Users matching budget max:",
-      await User.find({
-        "travelPreferences.budgetRange.max": { $gte: travelPost.budget },
-      })
-    );
 
     // Call the function
-    const matches = await findPotentialMatches(travelPost._id);
-    console.log("Fetched Matches:", matches); // Log the matches returned by the function
+    const matches = await findPotentialMatches(travelPost._id); 
 
     // Assertions
     expect(matches.length).toBe(1); // Only Alice matches the criteria
@@ -165,9 +122,7 @@ describe("findPotentialMatches", () => {
 
   it("should create a trip when both users approve the match", async () => {
     const user1Id = new mongoose.Types.ObjectId();
-    const user2Id = new mongoose.Types.ObjectId();
-    console.log("user1", user1Id);
-    console.log("user2", user2Id);
+    const user2Id = new mongoose.Types.ObjectId(); 
     // Create mock users
     const user1 = new User({
       _id: user1Id,

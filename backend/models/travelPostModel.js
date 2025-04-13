@@ -11,6 +11,7 @@ const TravelPostSchema = new mongoose.Schema({
     start: { type: Date, required: true },
     end: { type: Date, required: true },
   },
+  image: { type: String },
   description: { type: String },
   budget: { type: Number },
   travelStyle: { type: String },
@@ -24,7 +25,8 @@ const TravelPostSchema = new mongoose.Schema({
     enum: ["active", "closed"],
     default: "active",
   },
-  createdAt: { type: Date, default: Date.now },
+},{
+  timestamps: true,
 });
 
 module.exports = mongoose.model("TravelPost", TravelPostSchema);

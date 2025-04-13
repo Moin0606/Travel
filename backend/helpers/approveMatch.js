@@ -13,9 +13,6 @@ async function approveMatch(userId, matchId) {
     if (!match) {
       throw new Error("Match not found");
     }
-
-    console.log("Found Match:", match);
-
     // Ensure the user is authorized to approve this match
     if (match.userId.toString() !== userId.toString()) {
       throw new Error("Unauthorized to approve this match");
@@ -23,8 +20,7 @@ async function approveMatch(userId, matchId) {
 
     // Update the match status to "accepted"
     match.status = "accepted";
-    await match.save({ session });
-    console.log("Updated Match Status to Accepted:", match);
+    await match.save({ session }); 
 
     // Fetch the travel post to get the creatorId
     const travelPost = await TravelPost.findById(match.postId).session(session);
@@ -37,14 +33,8 @@ async function approveMatch(userId, matchId) {
       ? match.userId // If the current user is the creator, the other user is the match's userId
       : travelPost.creatorId; // Otherwise, the other user is the creator
 
-    console.log("Travel Post Creator ID:", travelPost.creatorId.toString());
-    console.log("Current User ID:", userId.toString());
-    console.log("Match User ID:", match.userId.toString());
-    console.log("Calculated Other User ID:", otherUserId.toString());
-
     // Prevent creating a trip if the user IDs match
-    if (otherUserId.toString() === userId.toString()) {
-      console.log("User IDs match. Skipping trip creation.");
+    if (otherUserId.toString() === userId.toString()) { 
       await session.commitTransaction();
       return match;
     }
@@ -55,14 +45,10 @@ async function approveMatch(userId, matchId) {
       userId: otherUserId,
       status: "accepted",
     }).session(session);
-
-    console.log("Other Match Found:", otherMatch);
-
+ 
     if (otherMatch) {
       // Ensure the participants array contains unique IDs
-      const participants = [userId, otherUserId].filter((id, index, array) => array.indexOf(id) === index);
-      console.log("Participants:", participants.map((id) => id.toString()));
-
+      const participants = [userId, otherUserId].filter((id, index, array) => array.indexOf(id) === index); 
       // Create the trip
       const trip = await Trip.create(
         [
@@ -74,9 +60,7 @@ async function approveMatch(userId, matchId) {
           },
         ],
         { session }
-      );
-
-      console.log("Trip Created Successfully:", trip);
+      ); 
     }
 
     await session.commitTransaction();
