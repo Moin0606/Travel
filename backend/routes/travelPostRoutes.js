@@ -1,107 +1,142 @@
 const express = require("express");
-const { upload }= require('../middleware/uploadMiddleware');
-const {
-  createPost,
-  getAllPosts,
-  requestMatch,
-  respondToMatch,
-  getUserPosts,
-  getMatchedUsers,
-  closePost
-} = require("../controllers/travelPostController");
+const router = express.Router();
+const travelPostController = require("../controllers/travelPostController");
 const protect = require("../middleware/authMiddleware");
 
-const router = express.Router();
-
 /**
- * @route   POST /api/posts
- * @desc    Create a new travel post with optional images
- * @access  Private
- * @body    {String} destination - Required
- *          {Object} travelDates - Required {start: Date, end: Date}
- *          {String} [description]
- *          {Number} [budget]
- *          {String} [travelStyle]
- *          {Object} [requirements] - {minAge, maxAge, genderPreference}
- * @files   {Array} [images] - Up to 5 images
- * @returns {Object} 201 - Newly created post with populated creator
- * @returns {Object} 400 - Invalid input data
- * @returns {Object} 500 - Server error
+ * @route   POST /posts
+ * @desc    Create a new travel post.
+ * @access  Private (requires authentication)
+ * @body    {string} destination - The destination of the travel post.
+ * @body    {object} travelDates - The start and end dates of the trip.
+ * @body    {string} travelDates.start - The start date of the trip (ISO 8601 format).
+ * @body    {string} travelDates.end - The end date of the trip (ISO 8601 format).
+ * @body    {string} [image] - Optional image URL for the travel post.
+ * @body    {string} [description] - Optional description of the travel post.
+ * @body    {number} [budget] - Optional budget for the trip.
+ * @body    {string} [travelStyle] - Optional travel style (e.g., "adventure", "luxury").
+ * @body    {object} [requirements] - Optional requirements for potential matches.
+ * @body    {number} [requirements.minAge] - Minimum age requirement.
+ * @body    {number} [requirements.maxAge] - Maximum age requirement.
+ * @body    {string} [requirements.genderPreference] - Gender preference (e.g., "male", "female", "any").
+ * @returns {object} Created travel post object with the following fields:
+ *          - _id {string}: The unique ID of the travel post.
+ *          - creatorId {string}: The ID of the user who created the post.
+ *          - destination {string}: The destination of the travel post.
+ *          - travelDates {object}: The start and end dates of the trip.
+ *          - image {string}: Optional image URL for the travel post.
+ *          - description {string}: Optional description of the travel post.
+ *          - budget {number}: Optional budget for the trip.
+ *          - travelStyle {string}: Optional travel style.
+ *          - requirements {object}: Optional requirements for potential matches.
+ *          - status {string}: The status of the travel post ("active" or "closed").
+ *          - createdAt {string}: The timestamp when the post was created.
+ *          - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.post("/", protect, upload.array('images', 5), createPost);
+router.post("/", protect, travelPostController.createTravelPost);
 
 /**
- * @route   GET /api/posts
- * @desc    Get all active travel posts with filtering options
+ * @route   GET /posts
+ * @desc    Get all travel posts with optional filters.
  * @access  Public
- * @query   {String} [destination] - Filter by destination (case-insensitive)
- *          {Date} [startDate] - Filter by trips starting after this date
- *          {Date} [endDate] - Filter by trips ending before this date
- *          {String} [style] - Filter by travel style
- * @returns {Array} 200 - Array of travel posts with populated creator and matches
- * @returns {Object} 500 - Server error
+ * @query   {string} [creatorId] - Filter by the ID of the user who created the post.
+ * @query   {string} [budget] - Filter by budget range (format: "min,max").
+ * @query   {string} [travelStyle] - Filter by travel style (e.g., "adventure", "luxury").
+ * @query   {number} [minAge] - Filter by minimum age requirement.
+ * @query   {number} [maxAge] - Filter by maximum age requirement.
+ * @query   {string} [genderPreference] - Filter by gender preference (e.g., "male", "female", "any").
+ * @query   {string} [description] - Perform a case-insensitive text search in the description.
+ * @returns {object} List of filtered travel posts with the following fields:
+ *          - count {number}: Total number of matching travel posts.
+ *          - travelPosts {array}: Array of travel post objects.
+ *            - _id {string}: The unique ID of the travel post.
+ *            - creatorId {string}: The ID of the user who created the post.
+ *            - destination {string}: The destination of the travel post.
+ *            - travelDates {object}: The start and end dates of the trip.
+ *            - image {string}: Optional image URL for the travel post.
+ *            - description {string}: Optional description of the travel post.
+ *            - budget {number}: Optional budget for the trip.
+ *            - travelStyle {string}: Optional travel style.
+ *            - requirements {object}: Optional requirements for potential matches.
+ *            - status {string}: The status of the travel post ("active" or "closed").
+ *            - createdAt {string}: The timestamp when the post was created.
+ *            - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.get("/", getAllPosts);
+router.get("/", travelPostController.getAllTravelPosts);
 
 /**
- * @route   GET /api/posts/my-posts
- * @desc    Get all posts created by the authenticated user
- * @access  Private
- * @returns {Array} 200 - Array of user's posts with populated match data
- * @returns {Object} 500 - Server error
+ * @route   DELETE /posts/:postId
+ * @desc    Delete a travel post by ID.
+ * @access  Private (requires authentication)
+ * @param   {string} postId - The ID of the travel post to delete.
+ * @returns {object} Deleted travel post object with the following fields:
+ *          - _id {string}: The unique ID of the travel post.
+ *          - creatorId {string}: The ID of the user who created the post.
+ *          - destination {string}: The destination of the travel post.
+ *          - travelDates {object}: The start and end dates of the trip.
+ *          - image {string}: Optional image URL for the travel post.
+ *          - description {string}: Optional description of the travel post.
+ *          - budget {number}: Optional budget for the trip.
+ *          - travelStyle {string}: Optional travel style.
+ *          - requirements {object}: Optional requirements for potential matches.
+ *          - status {string}: The status of the travel post ("active" or "closed").
+ *          - createdAt {string}: The timestamp when the post was created.
+ *          - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.get("/my-posts", protect, getUserPosts);
+router.delete("/:postId", protect, travelPostController.deleteTravelPost);
 
 /**
- * @route   POST /api/posts/:postId/matches
- * @desc    Request to match with a travel post
- * @access  Private
- * @params  {String} postId - Required ID of the post to match with
- * @returns {Object} 200 - Updated post with new match request
- * @returns {Object} 400 - Already matched or invalid request
- * @returns {Object} 404 - Post not found
- * @returns {Object} 500 - Server error
+ * @route   PATCH /posts/:postId
+ * @desc    Update a travel post by ID.
+ * @access  Private (requires authentication)
+ * @param   {string} postId - The ID of the travel post to update.
+ * @body    {string} [destination] - Updated destination of the travel post.
+ * @body    {object} [travelDates] - Updated start and end dates of the trip.
+ * @body    {string} [travelDates.start] - Updated start date of the trip (ISO 8601 format).
+ * @body    {string} [travelDates.end] - Updated end date of the trip (ISO 8601 format).
+ * @body    {string} [image] - Updated image URL for the travel post.
+ * @body    {string} [description] - Updated description of the travel post.
+ * @body    {number} [budget] - Updated budget for the trip.
+ * @body    {string} [travelStyle] - Updated travel style (e.g., "adventure", "luxury").
+ * @body    {object} [requirements] - Updated requirements for potential matches.
+ * @body    {number} [requirements.minAge] - Updated minimum age requirement.
+ * @body    {number} [requirements.maxAge] - Updated maximum age requirement.
+ * @body    {string} [requirements.genderPreference] - Updated gender preference (e.g., "male", "female", "any").
+ * @returns {object} Updated travel post object with the following fields:
+ *          - _id {string}: The unique ID of the travel post.
+ *          - creatorId {string}: The ID of the user who created the post.
+ *          - destination {string}: The destination of the travel post.
+ *          - travelDates {object}: The start and end dates of the trip.
+ *          - image {string}: Optional image URL for the travel post.
+ *          - description {string}: Optional description of the travel post.
+ *          - budget {number}: Optional budget for the trip.
+ *          - travelStyle {string}: Optional travel style.
+ *          - requirements {object}: Optional requirements for potential matches.
+ *          - status {string}: The status of the travel post ("active" or "closed").
+ *          - createdAt {string}: The timestamp when the post was created.
+ *          - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.post("/:postId/matches", protect, requestMatch);
+router.patch("/:postId", protect, travelPostController.updateTravelPost);
 
 /**
- * @route   PUT /api/posts/:postId/matches/:matchId
- * @desc    Respond to a match request (accept/reject)
- * @access  Private (post creator only)
- * @params  {String} postId - Required ID of the post
- *          {String} matchId - Required ID of the match request
- * @body    {String} response - Required "accept" or "reject"
- * @returns {Object} 200 - Updated post with modified match status
- * @returns {Object} 403 - Not authorized
- * @returns {Object} 404 - Post or match not found
- * @returns {Object} 500 - Server error
+ * @route   PATCH /posts/:postId/close
+ * @desc    Close a travel post by ID (set status to "closed").
+ * @access  Private (requires authentication)
+ * @param   {string} postId - The ID of the travel post to close.
+ * @returns {object} Updated travel post object with the following fields:
+ *          - _id {string}: The unique ID of the travel post.
+ *          - creatorId {string}: The ID of the user who created the post.
+ *          - destination {string}: The destination of the travel post.
+ *          - travelDates {object}: The start and end dates of the trip.
+ *          - image {string}: Optional image URL for the travel post.
+ *          - description {string}: Optional description of the travel post.
+ *          - budget {number}: Optional budget for the trip.
+ *          - travelStyle {string}: Optional travel style.
+ *          - requirements {object}: Optional requirements for potential matches.
+ *          - status {string}: The status of the travel post ("closed").
+ *          - createdAt {string}: The timestamp when the post was created.
+ *          - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.put("/:postId/matches/:matchId", protect, respondToMatch);
-
-/**
- * @route   GET /api/posts/:postId/matches
- * @desc    Get matched users for a specific post with filtering
- * @access  Private (post creator or matched users only)
- * @params  {String} postId - Required ID of the post
- * @query   {String} [status] - Filter by status ("pending"/"accepted"/"rejected")
- *          {String} [sort] - Sort by "newest"
- * @returns {Object} 200 - {matchedUsers: Array, count: Number}
- * @returns {Object} 403 - Not authorized
- * @returns {Object} 404 - Post not found
- * @returns {Object} 500 - Server error
- */
-router.get("/:postId/matches", protect, getMatchedUsers);
-
-/**
- * @route   PUT /api/posts/:postId/close
- * @desc    Close a travel post (mark as inactive)
- * @access  Private (post creator only)
- * @params  {String} postId - Required ID of the post
- * @returns {Object} 200 - Updated post with status "closed"
- * @returns {Object} 403 - Not authorized
- * @returns {Object} 404 - Post not found
- * @returns {Object} 500 - Server error
- */
-router.put("/:postId/close", protect, closePost);
+router.patch("/:postId/close", protect, travelPostController.closeTravelPost);
 
 module.exports = router;

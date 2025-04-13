@@ -1,245 +1,213 @@
+const mongoose = require("mongoose");
 const TravelPost = require("../models/travelPostModel");
-const User = require("../models/userModel");
-const { emitNotification }= require('../config/socketConfig');
-const { findPotentialMatches } = require("../utils/matchingAlgorithm");
+const Match = require("../models/matchModel");
+const { findPotentialMatches } = require("../helpers/matchingAlgorithm");
+const { createMatch } = require("../helpers/createMatch");
 
-// Create a Travel Post with Image Upload Support
-exports.createPost = async (req, res) => {
+// Create a new travel post
+exports.createTravelPost = async (req, res) => {
   try {
-    const { destination, travelDates, description, budget, travelStyle, requirements } = req.body;
-    
-    const newPost = new TravelPost({
-      creatorId: req.user.id,
+    const {
       destination,
       travelDates,
+      image,
       description,
       budget,
       travelStyle,
       requirements,
-      images: req.files?.map(file => file.path) || [], // Handle uploaded files
-      status: "active"
-    });
+    } = req.body;
 
-    await newPost.save();
-    
-    // Find and notify potential matches
-    const matches = await findPotentialMatches(newPost._id);
-    matches.forEach(user => {
-      emitNotification(user._id, 'new_post', {
-        postId: newPost._id,
-        message: `New trip to ${newPost.destination} matches your preferences`
+    // Validate required fields
+    if (!destination || !travelDates?.start || !travelDates?.end) {
+      return res.status(400).json({
+        message: "Destination and travel dates (start & end) are required.",
       });
-    });
-
-    res.status(201).json({ 
-      message: "Travel post created successfully", 
-      post: await newPost.populate('creatorId', 'username profilePicture')
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error creating travel post", 
-      error: error.message 
-    });
-  }
-};
-
-// Get All Travel Posts with Advanced Filtering
-exports.getAllPosts = async (req, res) => {
-  try {
-    const { destination, startDate, endDate, style } = req.query;
-    const filter = { status: "active" };
-    
-    if (destination) filter.destination = new RegExp(destination, 'i');
-    if (startDate) filter['travelDates.start'] = { $gte: new Date(startDate) };
-    if (endDate) filter['travelDates.end'] = { $lte: new Date(endDate) };
-    if (style) filter.travelStyle = style;
-
-    const posts = await TravelPost.find(filter)
-      .populate("creatorId", "username email profilePicture")
-      .populate("matchedUsers.userId", "username profilePicture")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(posts);
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error fetching posts", 
-      error: error.message 
-    });
-  }
-};
-
-// Enhanced Match Request with Notifications
-exports.requestMatch = async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const post = await TravelPost.findById(postId).populate('creatorId');
-
-    if (!post) return res.status(404).json({ message: "Travel post not found" });
-    if (post.creatorId._id.equals(req.user.id)) {
-      return res.status(400).json({ message: "Cannot match with your own post" });
     }
 
-    const existingMatch = post.matchedUsers.find(
-      match => match.userId.equals(req.user.id)
+    // Validate travel dates
+    if (new Date(travelDates.start) >= new Date(travelDates.end)) {
+      return res.status(400).json({
+        message: "Travel start date must be before the end date.",
+      });
+    }
+
+    const creatorId = req.user._id;
+
+    // Create a new travel post
+    const newTravelPost = new TravelPost({
+      creatorId,
+      destination,
+      travelDates,
+      image,
+      description,
+      budget,
+      travelStyle,
+      requirements,
+    });
+
+    // Save the travel post to the database
+    await newTravelPost.save();
+
+    // Trigger matching algorithm
+    const matches = await findPotentialMatches(newTravelPost._id);
+
+    // Create match entries for potential matches
+    for (const match of matches) {
+      await createMatch(match.userId, newTravelPost._id, match.matchScore);
+    }
+
+    res.status(201).json({
+      message: "Travel post created successfully",
+      travelPost: newTravelPost,
+    });
+  } catch (error) {
+    console.error("Error creating travel post:", error);
+    res.status(500).json({
+      message: "Failed to create travel post",
+      error: error.message,
+    });
+  }
+};
+
+// Close a travel post
+exports.closeTravelPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
+    }
+
+    // Find and update the travel post to "closed" status
+    const closedPost = await TravelPost.findByIdAndUpdate(
+      postId,
+      { status: "closed" },
+      { new: true }
     );
-    
-    if (existingMatch) {
-      return res.status(400).json({ message: "You've already matched with this post" });
-    }
 
-    post.matchedUsers.push({
-      userId: req.user.id,
-      status: "pending"
-    });
-
-    await post.save();
-    
-    // Notify post owner
-    emitNotification(post.creatorId._id, 'new_match', {
-      postId: post._id,
-      userId: req.user.id,
-      message: `${req.user.username} wants to join your trip to ${post.destination}`
-    });
-
-    res.status(200).json({ 
-      message: "Match request sent successfully", 
-      post: await TravelPost.populate(post, {
-        path: 'matchedUsers.userId',
-        select: 'username profilePicture'
-      })
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error sending match request", 
-      error: error.message 
-    });
-  }
-};
-
-// Enhanced Match Response with Notifications
-exports.respondToMatch = async (req, res) => {
-  try {
-    const { postId, matchId } = req.params;
-    const { response } = req.body;
-
-    const post = await TravelPost.findById(postId);
-    if (!post) return res.status(404).json({ message: "Travel post not found" });
-
-    // Verify the requester is the post creator
-    if (!post.creatorId.equals(req.user.id)) {
-      return res.status(403).json({ message: "Unauthorized action" });
-    }
-
-    const match = post.matchedUsers.id(matchId);
-    if (!match) return res.status(404).json({ message: "Match request not found" });
-
-    // Update status
-    match.status = response === "accept" ? "accepted" : "rejected";
-    await post.save();
-
-    // Notify the matched user
-    emitNotification(match.userId, 'match_update', {
-      postId: post._id,
-      status: match.status,
-      message: `Your match request for ${post.destination} was ${match.status}`
-    });
-
-    res.status(200).json({ 
-      message: `Match request ${match.status} successfully`,
-      post: await TravelPost.populate(post, {
-        path: 'matchedUsers.userId',
-        select: 'username profilePicture'
-      })
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error processing match request", 
-      error: error.message 
-    });
-  }
-};
-
-// Close a Travel Post
-exports.closePost = async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const post = await TravelPost.findById(postId);
-
-    if (!post) return res.status(404).json({ message: "Travel post not found" });
-    if (!post.creatorId.equals(req.user.id)) {
-      return res.status(403).json({ message: "Unauthorized action" });
-    }
-
-    post.status = "closed";
-    await post.save();
-
-    res.status(200).json({ 
-      message: "Post closed successfully",
-      post 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error closing post", 
-      error: error.message 
-    });
-  }
-};
-
-// Get User's Posts with Enhanced Data
-exports.getUserPosts = async (req, res) => {
-  try {
-    const posts = await TravelPost.find({ creatorId: req.user.id })
-      .populate({
-        path: 'matchedUsers.userId',
-        select: 'username profilePicture age gender'
-      })
-      .sort({ createdAt: -1 });
-    
-    res.status(200).json(posts);
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error fetching user posts", 
-      error: error.message 
-    });
-  }
-};
-
-// Get Matched Users with Advanced Filtering
-exports.getMatchedUsers = async (req, res) => {
-  try {
-    const post = await TravelPost.findById(req.params.postId)
-      .populate({
-        path: 'matchedUsers.userId',
-        select: 'username profilePicture age gender'
-      });
-
-    if (!post) return res.status(404).json({ message: "Travel post not found" });
-
-    // Verify access rights
-    if (!post.creatorId.equals(req.user.id) && 
-        !post.matchedUsers.some(m => m.userId._id.equals(req.user.id))) {
-      return res.status(403).json({ message: "Unauthorized access" });
-    }
-
-    const { status, sort } = req.query;
-    let matchedUsers = post.matchedUsers;
-
-    if (status) {
-      matchedUsers = matchedUsers.filter(m => m.status === status);
-    }
-
-    if (sort === 'newest') {
-      matchedUsers.sort((a, b) => b.matchedAt - a.matchedAt);
+    if (!closedPost) {
+      return res.status(404).json({ message: "Travel post not found" });
     }
 
     res.status(200).json({
-      matchedUsers,
-      count: matchedUsers.length
+      message: "Travel post closed successfully",
+      travelPost: closedPost,
     });
   } catch (error) {
+    console.error("Error closing travel post:", error);
     res.status(500).json({
-      message: "Error fetching matched users",
-      error: error.message
+      message: "Failed to close travel post",
+      error: error.message,
     });
+  }
+};
+
+// Get all travel posts with optional filters
+exports.getAllTravelPosts = async (req, res) => {
+  try {
+    const { creatorId, budget, travelStyle, minAge, maxAge, genderPreference, description } =
+      req.query;
+
+    const filter = {};
+
+    // Filter by creatorId
+    if (creatorId) {
+      if (!mongoose.Types.ObjectId.isValid(creatorId)) {
+        return res.status(400).json({ message: "Invalid creatorId format" });
+      }
+      filter.creatorId = creatorId;
+    }
+
+    // Filter by budget range
+    if (budget) {
+      const [minBudget, maxBudget] = budget.split(",").map(Number);
+      if (isNaN(minBudget) || isNaN(maxBudget)) {
+        return res.status(400).json({ message: "Invalid budget range" });
+      }
+      filter.budget = { $gte: minBudget, $lte: maxBudget };
+    }
+
+    // Filter by travelStyle
+    if (travelStyle) {
+      filter.travelStyle = travelStyle;
+    }
+
+    // Filter by requirements (minAge, maxAge, genderPreference)
+    if (minAge || maxAge || genderPreference) {
+      filter.requirements = {};
+      if (minAge) filter.requirements.minAge = { $gte: Number(minAge) };
+      if (maxAge) filter.requirements.maxAge = { $lte: Number(maxAge) };
+      if (genderPreference) filter.requirements.genderPreference = genderPreference;
+    }
+
+    // Text search in description
+    if (description) {
+      filter.description = { $regex: description, $options: "i" }; // Case-insensitive search
+    }
+
+    // Fetch filtered travel posts
+    const travelPosts = await TravelPost.find(filter);
+
+    res.status(200).json({
+      message: "Travel posts fetched successfully",
+      count: travelPosts.length,
+      travelPosts,
+    });
+  } catch (error) {
+    console.error("Error fetching travel posts:", error);
+    res.status(500).json({ message: "Failed to fetch travel posts", error: error.message });
+  }
+};
+
+// Delete a travel post
+exports.deleteTravelPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
+    }
+
+    // Find and delete the travel post
+    const deletedPost = await TravelPost.findByIdAndDelete(postId);
+
+    if (!deletedPost) {
+      return res.status(404).json({ message: "Travel post not found" });
+    }
+
+    res.status(200).json({ message: "Travel post deleted successfully", deletedPost });
+  } catch (error) {
+    console.error("Error deleting travel post:", error);
+    res.status(500).json({ message: "Failed to delete travel post", error: error.message });
+  }
+};
+
+// Update a travel post
+exports.updateTravelPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const updateData = req.body;
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
+    }
+
+    // Find and update the travel post
+    const updatedPost = await TravelPost.findByIdAndUpdate(postId, updateData, { new: true });
+
+    if (!updatedPost) {
+      return res.status(404).json({ message: "Travel post not found" });
+    }
+
+    res.status(200).json({
+      message: "Travel post updated successfully",
+      travelPost: updatedPost,
+    });
+  } catch (error) {
+    console.error("Error updating travel post:", error);
+    res.status(500).json({ message: "Failed to update travel post", error: error.message });
   }
 };
