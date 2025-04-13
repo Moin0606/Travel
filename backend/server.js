@@ -11,9 +11,9 @@ const travelPostRoutes = require("./routes/travelPostRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const matchRoutes = require("./routes/matchRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
-const { app, server } = require("./config/socket");
-const cookieParser = require("cookie-parser");
+const { app, server } = require("./config/socket"); 
 
 
 connectDB(); // Connect to MongoDB
@@ -36,13 +36,13 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/users", userRoutes);
-app.use("/api/posts/", travelPostRoutes);
+app.use("/api/posts", travelPostRoutes);
 
 app.use("/api/trip", tripRoutes);
 app.use("/api/messages", messageRoutes);
 
 
-//app.use("/api/chats", chatRoutes);
+app.use("/api/chats", chatRoutes);
 app.use("/api/matches", protect, matchRoutes);
 
 // Default Route
