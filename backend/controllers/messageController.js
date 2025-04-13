@@ -1,6 +1,6 @@
 const Message = require("../models/message");
 const User = require("../models/userModel");
-// const { getReceiverSocketId, io } = require("../lib/socket");
+const { getReceiverSocketId, io } = require("../config/socket");
 
 const getUserForSidebar = async (req, res) => {
   try {
@@ -61,10 +61,10 @@ const sendMessages = async (req, res) => {
     await newMessage.save();
 
     //Real time chat using socket.io
-    // const receiverSocketId = getReceiverSocketId(receiverId);
-    // if (receiverSocketId) {
-    //   io.to(receiverSocketId).emit("newMessage", newMessage);
-    // }
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
     res.status(201).json(newMessage);
   } catch (error) {
     console.log("Error in sendMessages : ", error.message);

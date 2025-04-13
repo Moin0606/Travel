@@ -85,7 +85,8 @@ const loginUser = async (req, res) => {
       token: generateToken(user._id, res),
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.log("Error in Login controller", error.message);
+    return res.status(400).json({ message: error.message });
   }
 };
 
