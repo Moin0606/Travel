@@ -11,7 +11,7 @@ const ChatHeader = () => {
   const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedUser.username}`;
 
   return (
-    <div className="p-2.5 border-b border-base-300">
+    <div className="p-2.5 border-b border-base-300 bg-slate-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Avatar */}
