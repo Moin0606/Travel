@@ -4,14 +4,17 @@ const cors = require("cors");
 const morgan = require("morgan");
 const connectDB = require("./config/db");
 const http = require("http");
-const { app, server } = require("./config/socket");
-const cookieParser = require("cookie-parser");
-
+const cookieParser = require('cookie-parser');
+const protect = require("./middleware/authMiddleware");
 const userRoutes = require("./routes/userRoutes");
 const travelPostRoutes = require("./routes/travelPostRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const messageRoutes = require("./routes/messageRoutes");
-//const matchRoutes = require("./routes/matchRoutes");
+const matchRoutes = require("./routes/matchRoutes");
+const chatRoutes = require("./routes/chatRoutes");
+
+const { app, server } = require("./config/socket"); 
+
 
 connectDB(); // Connect to MongoDB
 
@@ -33,12 +36,14 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/users", userRoutes);
-app.use("/api/posts/", travelPostRoutes);
+app.use("/api/posts", travelPostRoutes);
+
 app.use("/api/trip", tripRoutes);
 app.use("/api/messages", messageRoutes);
 
-//app.use("/api/chats", chatRoutes);
-//app.use("/api/matches", matchRoutes);
+
+app.use("/api/chats", chatRoutes);
+app.use("/api/matches", protect, matchRoutes);
 
 // Default Route
 app.get("/", (req, res) => {
@@ -58,6 +63,6 @@ app.use((err, req, res, next) => {
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+module.exports = app;

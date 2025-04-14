@@ -1,174 +1,213 @@
+const mongoose = require("mongoose");
 const TravelPost = require("../models/travelPostModel");
+const Match = require("../models/matchModel");
+const { findPotentialMatches } = require("../helpers/matchingAlgorithm");
+const { createMatch } = require("../helpers/createMatch");
 
-// Create a Travel Post
-exports.createPost = async (req, res) => {
+// Create a new travel post
+exports.createTravelPost = async (req, res) => {
   try {
-    const { destination, travelDates, description, budget, travelStyle, requirements } = req.body;
-    
-    const newPost = new TravelPost({
-      creatorId: req.user.id,
+    const {
       destination,
       travelDates,
+      image,
       description,
       budget,
       travelStyle,
       requirements,
-      status: "active" // Default status
-    });
+    } = req.body;
 
-    await newPost.save();
-    res.status(201).json({ message: "Travel post created successfully", post: newPost });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error creating travel post", 
-      error: error.message 
-    });
-  }
-};
-
-// Get All Travel Posts
-exports.getAllPosts = async (req, res) => {
-  try {
-    const posts = await TravelPost.find()
-      .populate("creatorId", "username email profilePicture")
-      .populate("matchedUsers.userId", "username profilePicture");
-    
-    res.status(200).json(posts);
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error fetching posts", 
-      error: error.message 
-    });
-  }
-};
-
-// Request a Match
-exports.requestMatch = async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const post = await TravelPost.findById(postId);
-
-    if (!post) {
-      return res.status(404).json({ message: "Travel post not found" });
+    // Validate required fields
+    if (!destination || !travelDates?.start || !travelDates?.end) {
+      return res.status(400).json({
+        message: "Destination and travel dates (start & end) are required.",
+      });
     }
 
-    // Check if user already matched with this post
-    const existingMatch = post.matchedUsers.find(
-      match => match.userId.toString() === req.user.id
-    );
-    
-    if (existingMatch) {
-      return res.status(400).json({ message: "You've already matched with this post" });
+    // Validate travel dates
+    if (new Date(travelDates.start) >= new Date(travelDates.end)) {
+      return res.status(400).json({
+        message: "Travel start date must be before the end date.",
+      });
     }
 
-    // Add new match request
-    post.matchedUsers.push({
-      userId: req.user.id,
-      status: "pending"
+    const creatorId = req.user._id;
+
+    // Create a new travel post
+    const newTravelPost = new TravelPost({
+      creatorId,
+      destination,
+      travelDates,
+      image,
+      description,
+      budget,
+      travelStyle,
+      requirements,
     });
 
-    await post.save();
-    
-    res.status(200).json({ 
-      message: "Match request sent successfully", 
-      post 
+    // Save the travel post to the database
+    await newTravelPost.save();
+
+    // Trigger matching algorithm
+    const matches = await findPotentialMatches(newTravelPost._id);
+
+    // Create match entries for potential matches
+    for (const match of matches) {
+      await createMatch(match.userId, newTravelPost._id, match.matchScore);
+    }
+
+    res.status(201).json({
+      message: "Travel post created successfully",
+      travelPost: newTravelPost,
     });
   } catch (error) {
-    res.status(500).json({ 
-      message: "Error sending match request", 
-      error: error.message 
+    console.error("Error creating travel post:", error);
+    res.status(500).json({
+      message: "Failed to create travel post",
+      error: error.message,
     });
   }
 };
 
-// Accept/Reject a Match Request
-exports.respondToMatch = async (req, res) => {
+// Close a travel post
+exports.closeTravelPost = async (req, res) => {
   try {
     const { postId } = req.params;
-    const { userId, response } = req.body; // response = "accept" or "reject"
 
-    const post = await TravelPost.findById(postId);
-    if (!post) {
-      return res.status(404).json({ message: "Travel post not found" });
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
     }
 
-    // Verify the requester is the post creator
-    if (post.creatorId.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Unauthorized action" });
-    }
-
-    // Find the match request
-    const matchRequest = post.matchedUsers.find(
-      match => match.userId.toString() === userId
+    // Find and update the travel post to "closed" status
+    const closedPost = await TravelPost.findByIdAndUpdate(
+      postId,
+      { status: "closed" },
+      { new: true }
     );
 
-    if (!matchRequest) {
-      return res.status(404).json({ message: "Match request not found" });
-    }
-
-    // Update status based on response
-    matchRequest.status = response === "accept" ? "accepted" : "rejected";
-    await post.save();
-
-    res.status(200).json({ 
-      message: `Match request ${response === "accept" ? "accepted" : "rejected"} successfully`,
-      post 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error processing match request", 
-      error: error.message 
-    });
-  }
-};
-
-// Get Posts by User
-exports.getUserPosts = async (req, res) => {
-  try {
-    const posts = await TravelPost.find({ creatorId: req.user.id })
-      .populate("matchedUsers.userId", "username profilePicture");
-    
-    res.status(200).json(posts);
-  } catch (error) {
-    res.status(500).json({ 
-      message: "Error fetching user posts", 
-      error: error.message 
-    });
-  }
-};
-
-// Get matched users for a specific post
-exports.getMatchedUsers = async (req, res) => {
-  try {
-    const post = await TravelPost.findById(req.params.postId)
-      .populate({
-        path: 'matchedUsers.userId',
-        select: 'username profilePicture age gender' // Include fields you want to display
-      })
-      .select('matchedUsers'); // Only return matchedUsers array
-
-    if (!post) {
+    if (!closedPost) {
       return res.status(404).json({ message: "Travel post not found" });
-    }
-
-    // Filter based on status if query parameter exists
-    const statusFilter = req.query.status; // e.g., ?status=accepted
-    let matchedUsers = post.matchedUsers;
-    
-    if (statusFilter) {
-      matchedUsers = post.matchedUsers.filter(
-        match => match.status === statusFilter
-      );
     }
 
     res.status(200).json({
-      matchedUsers,
-      count: matchedUsers.length
+      message: "Travel post closed successfully",
+      travelPost: closedPost,
     });
   } catch (error) {
+    console.error("Error closing travel post:", error);
     res.status(500).json({
-      message: "Error fetching matched users",
-      error: error.message
+      message: "Failed to close travel post",
+      error: error.message,
     });
+  }
+};
+
+// Get all travel posts with optional filters
+exports.getAllTravelPosts = async (req, res) => {
+  try {
+    const { creatorId, budget, travelStyle, minAge, maxAge, genderPreference, description } =
+      req.query;
+
+    const filter = {};
+
+    // Filter by creatorId
+    if (creatorId) {
+      if (!mongoose.Types.ObjectId.isValid(creatorId)) {
+        return res.status(400).json({ message: "Invalid creatorId format" });
+      }
+      filter.creatorId = creatorId;
+    }
+
+    // Filter by budget range
+    if (budget) {
+      const [minBudget, maxBudget] = budget.split(",").map(Number);
+      if (isNaN(minBudget) || isNaN(maxBudget)) {
+        return res.status(400).json({ message: "Invalid budget range" });
+      }
+      filter.budget = { $gte: minBudget, $lte: maxBudget };
+    }
+
+    // Filter by travelStyle
+    if (travelStyle) {
+      filter.travelStyle = travelStyle;
+    }
+
+    // Filter by requirements (minAge, maxAge, genderPreference)
+    if (minAge || maxAge || genderPreference) {
+      filter.requirements = {};
+      if (minAge) filter.requirements.minAge = { $gte: Number(minAge) };
+      if (maxAge) filter.requirements.maxAge = { $lte: Number(maxAge) };
+      if (genderPreference) filter.requirements.genderPreference = genderPreference;
+    }
+
+    // Text search in description
+    if (description) {
+      filter.description = { $regex: description, $options: "i" }; // Case-insensitive search
+    }
+
+    // Fetch filtered travel posts
+    const travelPosts = await TravelPost.find(filter);
+
+    res.status(200).json({
+      message: "Travel posts fetched successfully",
+      count: travelPosts.length,
+      travelPosts,
+    });
+  } catch (error) {
+    console.error("Error fetching travel posts:", error);
+    res.status(500).json({ message: "Failed to fetch travel posts", error: error.message });
+  }
+};
+
+// Delete a travel post
+exports.deleteTravelPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
+    }
+
+    // Find and delete the travel post
+    const deletedPost = await TravelPost.findByIdAndDelete(postId);
+
+    if (!deletedPost) {
+      return res.status(404).json({ message: "Travel post not found" });
+    }
+
+    res.status(200).json({ message: "Travel post deleted successfully", deletedPost });
+  } catch (error) {
+    console.error("Error deleting travel post:", error);
+    res.status(500).json({ message: "Failed to delete travel post", error: error.message });
+  }
+};
+
+// Update a travel post
+exports.updateTravelPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const updateData = req.body;
+
+    // Validate postId format
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid postId format" });
+    }
+
+    // Find and update the travel post
+    const updatedPost = await TravelPost.findByIdAndUpdate(postId, updateData, { new: true });
+
+    if (!updatedPost) {
+      return res.status(404).json({ message: "Travel post not found" });
+    }
+
+    res.status(200).json({
+      message: "Travel post updated successfully",
+      travelPost: updatedPost,
+    });
+  } catch (error) {
+    console.error("Error updating travel post:", error);
+    res.status(500).json({ message: "Failed to update travel post", error: error.message });
   }
 };
