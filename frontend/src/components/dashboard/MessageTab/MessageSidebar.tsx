@@ -5,8 +5,14 @@ import { Users } from "lucide-react";
 import { useAuthStore } from "../../../store/useAuthStore";
 
 const MessageSidebar = () => {
-  const { getUsers,getUsersConnected, users, selectedUser, setSelectedUser, isUsersLoading } =
-    useChatStore();
+  const {
+    getUsers,
+    getUsersConnected,
+    users,
+    selectedUser,
+    setSelectedUser,
+    isUsersLoading,
+  } = useChatStore();
 
   // const onlineUsers  = [];
   const { onlineUsers } = useAuthStore();
@@ -16,7 +22,7 @@ const MessageSidebar = () => {
   // useEffect(() => {
   //   getUsersConnected();
   // }, [getUsersConnected]);
-  
+
   useEffect(() => {
     getUsers();
   }, [getUsers]);
@@ -25,22 +31,22 @@ const MessageSidebar = () => {
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
 
-  
-
   if (isUsersLoading) return <SidebarSkeleton />;
 
   const SideBarUsersProfilePic = (user) => {
-    // const gender = user.gender;
+    const gender = user.gender;
 
-    // const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
-    // const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
+    const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
+    const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
     // console.log("gender", gender);
     const UserProfilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
     // console.log("UserProfilePic", UserProfilePic);
     return UserProfilePic;
   };
-  
-  // const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
+
+  {
+    /*const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;*/
+  }
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
       <div className="border-b border-base-300 w-full p-5">
@@ -59,9 +65,11 @@ const MessageSidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
-          {/* <span className="text-xs text-zinc-500">
-            ({onlineUsers.length - 1} online)
-          </span> */}
+          {
+            <span className="text-xs text-zinc-500">
+              ({onlineUsers.length - 1} online)
+            </span>
+          }
         </div>
       </div>
 

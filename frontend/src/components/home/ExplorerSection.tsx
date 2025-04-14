@@ -33,7 +33,7 @@ const ExplorerSection = () => {
   }, []);
 
   const handleGetStarted = () => {
-    toast.success("Let's start your Sri Lankan adventure!");
+    toast.success("Launching dashboard!");
     navigate("/dashboard");
   };
 

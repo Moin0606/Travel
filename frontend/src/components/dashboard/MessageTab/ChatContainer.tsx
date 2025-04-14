@@ -45,10 +45,10 @@ const ChatContainer = () => {
   }
 
   const UsersProfilePic = (user) => {
-    // const gender = user.gender;
+    const gender = user.gender;
 
-    // const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
-    // const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
+    const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
+    const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
     // console.log("gender", gender);
     const UserProfilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
     // console.log("UserProfilePic", UserProfilePic);
