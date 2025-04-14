@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,7 +15,7 @@ import NotFound from "./pages/NotFound";
 import { useAuthStore } from "./store/useAuthStore";
 import { useEffect } from "react";
 import { Loader } from "lucide-react";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from './contexts/AuthContext';
 import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
@@ -32,64 +33,71 @@ const App = () => {
       </div>
     );
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route
-                path="/login"
-                element={!authUser ? <Login /> : <Navigate to="/dashboard" />}
-              />
-              <Route
-                path="/register"
+   const getRedirectPath = () => {
+  if (!authUser) return "/";
+  if (authUser.role === "admin") return "/admin";
+  return "/dashboard";
+};
+
+
+  return (<QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route
+            path="/login"
+            element={!authUser ? <Login /> : <Navigate to={getRedirectPath()} />}
+          />
+          <Route
+            path="/register"
+            element={!authUser ? <Register /> : <Navigate to="/dashboard" />}
+          />
+
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route
+                path="/dashboard"
                 element={
-                  !authUser ? <Register /> : <Navigate to="/dashboard" />
+                  authUser && authUser.role === "user" ? (
+                    <Dashboard />
+                  ) : (
+                    <Navigate to={getRedirectPath()} />
+                  )
                 }
               />
+          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>)
 
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/contact" element={<ContactUs />} />
-              {/*
-          <Route
-            path="/dashboard"
-            element={authUser ? <Dashboard /> : <Navigate to="/" />}
-          />
-          */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-
-  // return (<QueryClientProvider client={queryClient}>
-  //   <TooltipProvider>
-  //     <Toaster />
-  //     <Sonner />
-  //     <BrowserRouter>
-  //       <Routes>
-  //         <Route path="/" element={<Index />} />
-  //         <Route path="/login" element={<Login />} />
-  //         <Route path="/register" element={<Register />} />
-  //         <Route path="/profile" element={<Profile />} />
-  //         <Route path="/admin" element={<Admin />} />
-  //         <Route path="/contact" element={<ContactUs />} />
-  //         <Route path="/dashboard" element={<Dashboard />} />
-  //         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-  //         <Route path="*" element={<NotFound />} />
-  //       </Routes>
-  //     </BrowserRouter>
-  //   </TooltipProvider>
-  // </QueryClientProvider>)
+// return (<QueryClientProvider client={queryClient}>
+//   <TooltipProvider>
+//     <Toaster />
+//     <Sonner />
+//     <BrowserRouter>
+//       <Routes>
+//         <Route path="/" element={<Index />} />
+//         <Route path="/login" element={<Login />} />
+//         <Route path="/register" element={<Register />} />
+//         <Route path="/profile" element={<Profile />} />
+//         <Route path="/admin" element={<Admin />} />
+//         <Route path="/contact" element={<ContactUs />} />
+//         <Route path="/dashboard" element={<Dashboard />} />
+//         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+//         <Route path="*" element={<NotFound />} />
+//       </Routes>
+//     </BrowserRouter>
+//   </TooltipProvider>
+// </QueryClientProvider>)
 };
 
 export default App;
