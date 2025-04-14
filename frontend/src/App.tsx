@@ -33,6 +33,12 @@ const App = () => {
       </div>
     );
 
+    const getRedirectPath = () => {
+      if (!authUser) return "/";
+      if (authUser.role === "admin") return "/admin";
+      return "/dashboard";
+    };
+
 
   return (<QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -44,7 +50,7 @@ const App = () => {
           <Route path="/" element={<Index />} />
           <Route
             path="/login"
-            element={!authUser ? <Login /> : <Navigate to="/dashboard" />}
+            element={!authUser ? <Login /> : <Navigate to={getRedirectPath()} />}
           />
           <Route
             path="/register"
@@ -55,9 +61,15 @@ const App = () => {
           <Route path="/admin" element={<Admin />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route
-            path="/dashboard"
-            element={authUser ? <Dashboard /> : <Navigate to="/" />}
-          />
+                path="/dashboard"
+                element={
+                  authUser && authUser.role === "user" ? (
+                    <Dashboard />
+                  ) : (
+                    <Navigate to={getRedirectPath()} />
+                  )
+                }
+              />
           {/* <Route path="/dashboard" element={<Dashboard />} /> */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -14,7 +14,9 @@ const registerUser = async (req, res) => {
     address,
     phoneNumber,
     verificationDocument,
+    role
   }  = req.body;
+
 
   try {
     if (!username || !email || !password) {
@@ -42,6 +44,7 @@ const registerUser = async (req, res) => {
       address,
       phoneNumber,
       verificationDocument,
+      role,
     });
     if (newUser) {
       await newUser.save();
@@ -50,6 +53,7 @@ const registerUser = async (req, res) => {
         _id: newUser._id,
         username: newUser.username,
         email: newUser.email,
+        
       });
     } else {
       return res.status(400).json({ message: "User registration failed" });
@@ -85,6 +89,7 @@ const loginUser = async (req, res) => {
       username: user.username,
       email: user.email,
       token: generateToken(user._id, res),
+      role:user.role
     });
   } catch (error) {
     console.log("Error in Login controller", error.message);
@@ -113,10 +118,20 @@ const checkAuth = (req, res) => {
   }
 };
 
+const allUser = async (req, res) => {
+  try {
+    const users = await User.find({ role: 'user' });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logout,
   // updateProfile,
   checkAuth,
+  allUser
 };

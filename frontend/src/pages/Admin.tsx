@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import UserManagement from '@/components/admin/UserManagement';
+import { useAuthStore } from "../store/useAuthStore";
+import { useNavigate } from 'react-router-dom';
 
 interface AdminMenuItem {
   id: string;
@@ -34,11 +37,37 @@ const ADMIN_MENU: AdminMenuItem[] = [
 ];
 
 const Admin = () => {
+  const navigate =useNavigate();
+
+  const {authUser}=useAuthStore();
+  if (!authUser){
+    navigate('/');
+  }
   const [activeMenuItem, setActiveMenuItem] = useState('users');
   
   const handleMenuItemClick = (id: string) => {
     setActiveMenuItem(id);
     toast.success(`${ADMIN_MENU.find(item => item.id === id)?.name} selected`);
+  };
+  
+  const renderContent = () => {
+    switch (activeMenuItem) {
+      case 'users':
+        return <UserManagement />;
+      default:
+        return (
+          <div>
+            <h3 className="text-xl font-semibold mb-4">
+              {ADMIN_MENU.find(item => item.id === activeMenuItem)?.name}
+            </h3>
+            
+            <p className="text-gray-500">
+              This is a placeholder for the {ADMIN_MENU.find(item => item.id === activeMenuItem)?.name.toLowerCase()} interface. 
+              In a complete implementation, this area would contain the relevant management tools and data.
+            </p>
+          </div>
+        );
+    }
   };
   
   return (
@@ -50,7 +79,7 @@ const Admin = () => {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden animate-fade-in">
             <div className="p-6 md:p-8">
               <h2 className="text-2xl font-bold text-travely-blue mb-2">Travely Admin</h2>
-              <p className="text-sm text-gray-500 mb-8">admin.travely.lanka</p>
+              <p className="text-sm text-gray-500 mb-8">{authUser.username}</p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {ADMIN_MENU.map(item => (
@@ -74,14 +103,7 @@ const Admin = () => {
               </div>
               
               <div className="mt-10 p-6 border-t border-gray-200">
-                <h3 className="text-xl font-semibold mb-4">
-                  {ADMIN_MENU.find(item => item.id === activeMenuItem)?.name}
-                </h3>
-                
-                <p className="text-gray-500">
-                  This is a placeholder for the {ADMIN_MENU.find(item => item.id === activeMenuItem)?.name.toLowerCase()} interface. 
-                  In a complete implementation, this area would contain the relevant management tools and data.
-                </p>
+                {renderContent()}
               </div>
             </div>
           </div>
