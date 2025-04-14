@@ -138,34 +138,37 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10 border border-gray-200">
                     <AvatarImage
-                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=John"
+                      src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${authUser?.username || "User"}`}
                       alt="User avatar"
                     />
-                    <AvatarFallback>JS</AvatarFallback>
+                    <AvatarFallback>
+                      {authUser?.username?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
                   </Avatar>
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {showEmail ? "john.smith@example.com" : "John Smith"}
+                      {showEmail ? authUser?.email : authUser?.username}
                     </p>
                     <p className="text-xs text-gray-500 truncate">Traveler</p>
                   </div>
                 </div>
 
                 <Button
-                  onClick={toggleProfileDisplay}
+                  onClick={() => navigate("/profile")}
                   size="sm"
                   variant="outline"
                   className="w-full"
                 >
                   {showEmail ? <User size={16} /> : <Mail size={16} />}
                   <span className="ml-2">
-                    {showEmail ? "Show ID" : "Show Email"}
+                    {showEmail ? "Go to Profile (Username)" : "Go to Profile (Email)"}
                   </span>
                 </Button>
               </CardContent>
             </Card>
           </SidebarFooter>
+
         </Sidebar>
 
         {/* Main Content */}

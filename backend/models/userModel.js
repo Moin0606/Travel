@@ -11,6 +11,7 @@ const UserSchema = new mongoose.Schema({
   phoneNumber: { type: String },
   isVerified: { type: Boolean, default: false },
   role: { type: String, default: "user" },
+  gender : {type : String},
 
   // Track posts this user has matched with
   matchedPosts: [
