@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useUserStore } from '../../store/userStore'
 
 interface User {
-  id: string;
+  _id: string;
   username: string;
   age: number;
   gender: string;
@@ -41,14 +41,42 @@ const UserManagement: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const handleAccept = (userId: string) => {
-    setUsers(prev => prev.filter(user => user.id !== userId));
-    toast.success('User accepted successfully');
+  const handleAccept = async (userId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/accept/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(response)
+      if (!response.ok) throw new Error('Failed to accept user');
+      
+      setUsers(prev => prev.filter(user => user._id !== userId));
+      toast.success('User accepted successfully');
+    } catch (error) {
+      console.error('Error accepting user:', error);
+      toast.error('Failed to accept user');
+    }
   };
-
-  const handleReject = (userId: string) => {
-    setUsers(prev => prev.filter(user => user.id !== userId));
-    toast.error('User rejected');
+  
+  const handleReject = async (userId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/reject/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) throw new Error('Failed to reject user');
+      
+      setUsers(prev => prev.filter(user => user._id !== userId));
+      toast.error('User rejected');
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      toast.error('Failed to reject user');
+    }
   };
   const openImageModal = (imageUrl: string) => {
     setSelectedImage(imageUrl);
@@ -69,7 +97,7 @@ const UserManagement: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {users.map(user => (
-            <Card key={user.id} className="hover:shadow-md transition-shadow duration-300">
+            <Card key={user._id} className="hover:shadow-md transition-shadow duration-300">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -103,7 +131,7 @@ const UserManagement: React.FC = () => {
                       variant="outline"
                       size="sm"
                       className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                      onClick={() => handleAccept(user.id)}
+                      onClick={() => handleAccept(user._id)}
                     >
                       <Check className="mr-1" size={16} />
                       Accept
@@ -113,7 +141,7 @@ const UserManagement: React.FC = () => {
                       variant="outline"
                       size="sm"
                       className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200"
-                      onClick={() => handleReject(user.id)}
+                      onClick={() => handleReject(user._id)}
                     >
                       <X className="mr-1" size={16} />
                       Reject

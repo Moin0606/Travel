@@ -127,11 +127,51 @@ const allUser = async (req, res) => {
   }
 };
 
+// userController.js
+const acceptUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { isVerified: true },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'User verified successfully', user });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const rejectUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { isVerified: false },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'User rejected successfully', user });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logout,
   // updateProfile,
   checkAuth,
-  allUser
+  allUser,
+  acceptUser,
+  rejectUser
+
 };
