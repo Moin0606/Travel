@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await axios.get(
-        "http://localhost:5001/api/users/current",
+        "http://localhost:5000/api/users/current",
         {
           withCredentials: true,
         }

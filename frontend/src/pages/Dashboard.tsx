@@ -38,9 +38,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [showEmail, setShowEmail] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"explore" | "matched" | "message">(
-    "explore"
-  );
+  const [currentView, setCurrentView] = useState<
+    "explore" | "matched" | "message"
+  >("explore");
   const [loggedInUser, setLoggedInUser] = useState("");
   useEffect(() => {
     setLoggedInUser(localStorage.getItem("token"));
@@ -51,7 +51,7 @@ const Dashboard = () => {
     logout();
     localStorage.clear();
     setLoggedInUser("");
-    navigate('/', { state: { fromLogout: true } });
+    navigate("/", { state: { fromLogout: true } });
     window.location.reload();
   };
 

@@ -9,26 +9,25 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-
   // image setting
-  // const handleImageChange = (e) => {
-  //   const file = e.target.files[0];
-  //   if (!file.type.startsWith("image/")) {
-  //     toast.error("Please select an image file");
-  //     return;
-  //   }
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
 
-  //   const reader = new FileReader();
-  //   reader.onloadend = () => {
-  //     setImagePreview(reader.result);
-  //   };
-  //   reader.readAsDataURL(file);
-  // };
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
-  // const removeImage = () => {
-  //   setImagePreview(null);
-  //   if (fileInputRef.current) fileInputRef.current.value = "";
-  // };
+  const removeImage = () => {
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -37,7 +36,7 @@ const MessageInput = () => {
     try {
       await sendMessage({
         text: text.trim(),
-        // image: imagePreview,
+        image: imagePreview,
       });
 
       // Clear form
@@ -47,7 +46,7 @@ const MessageInput = () => {
       setImagePreview(null);
       // console.log("Form cleared");
 
-      // if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -55,7 +54,7 @@ const MessageInput = () => {
 
   return (
     <div className="p-4 w-full">
-      {/* {imagePreview && (
+      {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
             <img
@@ -73,7 +72,7 @@ const MessageInput = () => {
             </button>
           </div>
         </div>
-      )} */}
+      )}
 
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
@@ -84,22 +83,22 @@ const MessageInput = () => {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          {/* <input
+          <input
             type="file"
             accept="image/*"
             className="hidden"
             ref={fileInputRef}
             onChange={handleImageChange}
-          /> */}
+          />
 
-          {/* <button
+          <button
             type="button"
             className={`hidden sm:flex btn btn-circle
                      ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
             onClick={() => fileInputRef.current?.click()}
           >
             <Image size={20} />
-          </button> */}
+          </button>
         </div>
         <button
           type="submit"
