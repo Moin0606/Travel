@@ -7,46 +7,34 @@ import { useAuthStore } from "../../../store/useAuthStore";
 const MessageSidebar = () => {
   const {
     getUsers,
-    getUsersConnected,
     users,
     selectedUser,
     setSelectedUser,
     isUsersLoading,
   } = useChatStore();
 
-  // const onlineUsers  = [];
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
-  //If users are connected with each others
-  // useEffect(() => {
-  //   getUsersConnected();
-  // }, [getUsersConnected]);
-
   useEffect(() => {
-    getUsers();
+    getUsers(); // Fetch the list of users
   }, [getUsers]);
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
 
-  if (isUsersLoading) return <SidebarSkeleton />;
-
-  const SideBarUsersProfilePic = (user) => {
-    const gender = user.gender;
-
-    const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
-    const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
-    // console.log("gender", gender);
-    const UserProfilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
-    // console.log("UserProfilePic", UserProfilePic);
-    return UserProfilePic;
+  const getUserProfilePic = (user) => {
+    const defaultAvatar = "/avatar.png";
+    return (
+      user.profilePic ||
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}` ||
+      defaultAvatar
+    );
   };
 
-  {
-    /*const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;*/
-  }
+  if (isUsersLoading) return <SidebarSkeleton />;
+
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
       <div className="border-b border-base-300 w-full p-5">
@@ -54,7 +42,7 @@ const MessageSidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* TODO: Online filter toggle */}
+        {/* Online filter toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -65,11 +53,9 @@ const MessageSidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
-          {
-            <span className="text-xs text-zinc-500">
-              ({onlineUsers.length - 1} online)
-            </span>
-          }
+          <span className="text-xs text-zinc-500">
+            ({onlineUsers.length - 1 > 0 ? onlineUsers.length-1 : 0} online)
+          </span>
         </div>
       </div>
 
@@ -90,12 +76,8 @@ const MessageSidebar = () => {
           >
             <div className="relative mx-auto lg:mx-0">
               <img
-                src={
-                  user.profilePic ||
-                  SideBarUsersProfilePic(user) ||
-                  "/avatar.png"
-                }
-                alt={user.name}
+                src={getUserProfilePic(user)}
+                alt={user.fullName}
                 className="size-12 object-cover rounded-full"
               />
               {onlineUsers.includes(user._id) && (
@@ -117,7 +99,9 @@ const MessageSidebar = () => {
         ))}
 
         {filteredUsers.length === 0 && (
-          <div className="text-center text-zinc-500 py-4">No online users</div>
+          <div className="text-center text-zinc-500 py-4">
+            {showOnlineOnly ? "No online users" : "No contacts available"}
+          </div>
         )}
       </div>
     </aside>

@@ -19,21 +19,31 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
 
   useEffect(() => {
-    getMessages(selectedUser._id);
-    subscribeToMessages();
+    if (selectedUser) {
+      getMessages(selectedUser._id);
+      subscribeToMessages();
+    }
 
-    return () => unsubscribeFromMessages();
-  }, [
-    selectedUser._id,
-    getMessages,
-    unsubscribeFromMessages,
-    subscribeToMessages,
-  ]);
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages, selectedUser]);
+
   useEffect(() => {
-    if (messageEndRef.current && messages) {
+    if (messageEndRef.current && messages.length > 0) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const getUserProfilePic = (user) => {
+    const defaultAvatar = "/avatar.png";
+    return (
+      user.profilePic ||
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}` ||
+      defaultAvatar
+    );
+  };
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -44,42 +54,25 @@ const ChatContainer = () => {
     );
   }
 
-  const UsersProfilePic = (user) => {
-    const gender = user.gender;
-
-    const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
-    const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
-    // console.log("gender", gender);
-    const UserProfilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
-    // console.log("UserProfilePic", UserProfilePic);
-    return UserProfilePic;
-  };
-
-  // const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
-
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
       <div className="flex-1 flex flex-col overflow-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div
             key={message._id}
             className={`chat ${
               message.senderId === authUser._id ? "chat-end" : "chat-start"
             }`}
-            ref={messageEndRef}
+            ref={index === messages.length - 1 ? messageEndRef : null}
           >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
                     message.senderId === authUser._id
-                      ? authUser.profilePic ||
-                        UsersProfilePic(authUser) ||
-                        "/avatar.png"
-                      : selectedUser.profilePic ||
-                        UsersProfilePic(selectedUser) ||
-                        "/avatar.png"
+                      ? getUserProfilePic(authUser)
+                      : getUserProfilePic(selectedUser)
                   }
                   alt="Profile Pic"
                 />
@@ -103,7 +96,6 @@ const ChatContainer = () => {
           </div>
         ))}
       </div>
-
       <MessageInput />
     </div>
   );
