@@ -2,7 +2,7 @@ const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { generateToken } = require("../config/utils");
-
+const cloudinary = require("../config/cloudinary");
 const registerUser = async (req, res) => {
   const {
     username,
@@ -163,7 +163,33 @@ const rejectUser = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+const updateProfile = async (req, res) => {
+  try {
+    const { profilePic } = req.body;
+    // console.log("req.body", req.body);
 
+    // console.log("profile pic", profilePic);
+
+    const userId = req.user._id;
+    // console.log("userId", userId);
+
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile Picture is required" });
+    }
+
+    const response = await cloudinary.uploader.upload(profilePic);
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: response.secure_url },
+      { new: true }
+    );
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log("Error in updateProfile controller", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 module.exports = {
   registerUser,
   loginUser,
@@ -172,6 +198,7 @@ module.exports = {
   checkAuth,
   allUser,
   acceptUser,
-  rejectUser
+  rejectUser,
+  updateProfile
 
 };

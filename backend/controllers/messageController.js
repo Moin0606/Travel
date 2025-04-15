@@ -1,5 +1,6 @@
 const Message = require("../models/message");
 const User = require("../models/userModel");
+const cloudinary = require("cloudinary");
 const { getReceiverSocketId, io } = require("../config/socket");
 
 const getUserForSidebar = async (req, res) => {
@@ -52,10 +53,17 @@ const sendMessages = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
+    let imageUrl;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image);
+      imageUrl = uploadResponse.secure_url;
+    }
+
     const newMessage = new Message({
       senderId,
       receiverId,
       text,
+      image: imageUrl,
     });
 
     await newMessage.save();

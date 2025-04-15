@@ -11,7 +11,7 @@ const travelPostRoutes = require("./routes/travelPostRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const matchRoutes = require("./routes/matchRoutes");
-const chatRoutes = require("./routes/chatRoutes");
+
 
 const { app, server } = require("./config/socket"); 
 
@@ -42,7 +42,7 @@ app.use("/api/trip", tripRoutes);
 app.use("/api/messages", messageRoutes);
 
 
-app.use("/api/chats", chatRoutes);
+
 app.use("/api/matches", protect, matchRoutes);
 
 // Default Route
@@ -58,11 +58,9 @@ app.use((err, req, res, next) => {
     message: "Something broke!",
   });
 });
-//WebSocket
-// const io = configureSocket(server);
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 module.exports = app;

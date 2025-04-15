@@ -7,14 +7,29 @@ import { useAuthStore } from "../../../store/useAuthStore";
 import { formatMessageTime } from "../../../lib/utils";
 
 const ChatContainer = () => {
+  type Message = {
+    _id: string;
+    senderId: string;
+    text?: string;
+    image?: string;
+    createdAt: string;
+  };
+  
   const {
-    messages,
-    getMessages,
-    isMessagesLoading,
-    selectedUser,
-    subscribeToMessages,
-    unsubscribeFromMessages,
-  } = useChatStore();
+      messages,
+      getMessages,
+      isMessagesLoading,
+      selectedUser,
+      subscribeToMessages,
+      unsubscribeFromMessages,
+    }: {
+      messages: Message[];
+      getMessages: (userId: string) => void;
+      isMessagesLoading: boolean;
+      selectedUser: { _id: string; username: string; profilePic?: string };
+      subscribeToMessages: () => void;
+      unsubscribeFromMessages: () => void;
+    } = useChatStore();
   const messageEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
@@ -45,20 +60,12 @@ const ChatContainer = () => {
   }
 
   const UsersProfilePic = (user) => {
-    const gender = user.gender;
-
-    const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${user.fullName}`;
-    const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${user.fullName}`;
-    // console.log("gender", gender);
     const UserProfilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
-    // console.log("UserProfilePic", UserProfilePic);
     return UserProfilePic;
   };
 
-  // const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
-
   return (
-    <div className="flex-1 flex flex-col overflow-auto bg-slate-100">
+    <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
       <div className="flex-1 flex flex-col overflow-auto p-4 space-y-4">
         {messages.map((message) => (
@@ -110,3 +117,6 @@ const ChatContainer = () => {
 };
 
 export default ChatContainer;
+
+
+  // const profilePic = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`;
