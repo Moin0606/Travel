@@ -17,6 +17,8 @@ import { useEffect } from "react";
 import { Loader } from "lucide-react";
 import { AuthProvider } from './contexts/AuthContext';
 import { Navigate } from "react-router-dom";
+import Booking from "./pages/Booking";
+
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,7 @@ const App = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/contact" element={<ContactUs />} />
+          <Route path="/booking" element={<Booking />} />
           <Route
                 path="/dashboard"
                 element={

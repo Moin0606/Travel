@@ -9,6 +9,7 @@ import {
   User,
   Mail,
   Plus,
+  Hotel,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,10 @@ const Dashboard = () => {
     });
   };
 
+  const navigateToBooking = () => {
+    navigate("/booking");
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50">
@@ -127,6 +132,14 @@ const Dashboard = () => {
                 >
                   <BookOpen />
                   <span>Trips</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+          
+
+          <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Book" onClick={navigateToBooking}>
+                  <Hotel />
+                  <span>Book</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
