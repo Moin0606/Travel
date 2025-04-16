@@ -1,169 +1,263 @@
-import React, { useState, useEffect } from "react";
-import { Image, Send, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import axios from "axios";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { axiosInstance } from "../../lib/axios";
 
 interface PostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: () => void; // Callback after successful post
+  onSubmit: () => void;
 }
 
 const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [destination, setDestination] = useState("");
-  const [description, setDescription] = useState("");
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploadedImage(file);
-      setImagePreview(URL.createObjectURL(file));
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm();
+
+  // Handle image file selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setValue("image", file); // Set the file in the form state
     }
   };
 
-  const handleSubmit = async () => {
-    if (!destination.trim() || !description.trim() || !uploadedImage) return;
-
-    setIsSubmitting(true);
-
+  // Submit handler
+  const onSubmitHandler = async (data: any) => {
     try {
-      const formData = new FormData();
-      formData.append("destination", destination);
-      formData.append("description", description);
-      formData.append("images", uploadedImage); // Assuming the API expects a single file
+      setLoading(true);
 
-      await axios.post("/api/posts", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      // Prepare form data for submission
+      const formData = new FormData();
+      formData.append("destination", data.destination);
+      formData.append("travelDates.start", data["travelDates.start"]);
+      formData.append("travelDates.end", data["travelDates.end"]);
+      if (data.image) formData.append("image", data.image);
+      if (data.description) formData.append("description", data.description);
+      if (data.budget) formData.append("budget", data.budget);
+      if (data.travelStyle) formData.append("travelStyle", data.travelStyle);
+      if (data.requirements.minAge)
+        formData.append("requirements.minAge", data.requirements.minAge);
+      if (data.requirements.maxAge)
+        formData.append("requirements.maxAge", data.requirements.maxAge);
+      if (data.requirements.genderPreference)
+        formData.append(
+          "requirements.genderPreference",
+          data.requirements.genderPreference
+        );
+
+      // Send POST request to create a travel post
+      await axiosInstance.post("/posts", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      onSubmit(); // Refresh post feed or show toast
-      resetForm();
-    } catch (error: any) {
-      console.error("Error creating post:", error.message);
-      alert("Failed to create post. Please try again.");
+      // Close modal and trigger success callback
+      onSubmit();
+      onClose();
+    } catch (error) {
+      console.error("Error creating travel post:", error);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setDestination("");
-    setDescription("");
-    setUploadedImage(null);
-    setImagePreview(null);
-    onClose();
-  };
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md md:max-w-lg animate-scale-in">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-fit max-h-[90vh] overflow-scroll no-scrollbar">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
-            Create Travel Post
-          </DialogTitle>
+          <DialogTitle>Create Travel Post</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4 mt-2">
-          {/* Destination */}
-          <div className="space-y-2">
-            <Label htmlFor="destination">Destination</Label>
-            <Input
-              id="destination"
-              placeholder="e.g., Ella, Sigiriya, Colombo..."
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-            />
+        <form
+          onSubmit={handleSubmit(onSubmitHandler)}
+          className="space-y-4 grid grid-cols-2 grid-flow-row gap-x-6 gap-y-4"
+        >
+          <div className="col-span-2 gap-4">
+            {/* Destination */}
+            <div>
+              <Label htmlFor="destination" className="flex flex-col gap-4">
+                Destination
+              </Label>
+              <Input
+                id="destination"
+                placeholder="Enter destination"
+                {...register("destination", {
+                  required: "Destination is required",
+                })}
+              />
+              {errors.destination && (
+                <p className="text-red-500 text-sm">
+                  {errors.destination.message}
+                </p>
+              )}
+            </div>
+            {/* Travel Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start-date">Start Date</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  {...register("travelDates.start", {
+                    required: "Start date is required",
+                  })}
+                />
+                {errors.travelDates?.start && (
+                  <p className="text-red-500 text-sm">
+                    {errors.travelDates.start.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="end-date">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  {...register("travelDates.end", {
+                    required: "End date is required",
+                  })}
+                />
+                {errors.travelDates?.end && (
+                  <p className="text-red-500 text-sm">
+                    {errors.travelDates.end.message}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Image Upload */}
-          <div className="space-y-2">
-            <Label htmlFor="post-image" className="flex items-center gap-2">
-              <Image size={18} />
-              Add a photo
-            </Label>
-
+          <div className="col-span-2">
+            <Label htmlFor="image">Image (Optional)</Label>
             <Input
-              id="post-image"
+              id="image"
               type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="cursor-pointer"
+              accept="image/jpeg, image/png, image/webp"
+              onChange={handleImageChange}
             />
-
             {imagePreview && (
-              <div className="relative mt-2 rounded-md overflow-hidden border border-gray-200">
+              <div className="">
                 <img
                   src={imagePreview}
-                  alt="Image preview"
-                  className="w-full h-48 object-cover"
+                  alt="Preview"
+                  className="w-full h-32 object-cover rounded-md"
                 />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                  onClick={() => {
-                    URL.revokeObjectURL(imagePreview);
-                    setImagePreview(null);
-                    setUploadedImage(null);
-                  }}
-                >
-                  <X size={16} />
-                </Button>
               </div>
             )}
           </div>
 
           {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="post-description">Description</Label>
+          <div className="col-span-2">
+            <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
-              id="post-description"
-              placeholder="Share your experience..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="resize-none"
+              id="description"
+              placeholder="Describe your trip..."
+              {...register("description")}
             />
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleSubmit}
-              disabled={
-                isSubmitting ||
-                !description.trim() ||
-                !uploadedImage ||
-                !destination.trim()
-              }
-              className="bg-travely-blue hover:bg-travely-dark-blue transition-colors"
-            >
-              <Send size={16} className="mr-2" />
-              {isSubmitting ? "Posting..." : "Post"}
-            </Button>
+          {/* Budget */}
+          <div>
+            <Label htmlFor="budget">Budget (Optional)</Label>
+            <Input
+              id="budget"
+              type="number"
+              placeholder="Enter budget"
+              {...register("budget", { valueAsNumber: true })}
+            />
           </div>
-        </div>
+
+          {/* Travel Style */}
+          <div>
+            <Label htmlFor="travel-style">Travel Style (Optional)</Label>
+            <Select
+              onValueChange={(value) => setValue("travelStyle", value)}
+              defaultValue={watch("travelStyle")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select travel style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="adventure">Adventure</SelectItem>
+                <SelectItem value="luxury">Luxury</SelectItem>
+                <SelectItem value="backpacker">Backpacker</SelectItem>
+                <SelectItem value="family">Family</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Requirements */}
+          <div className="col-span-2 space-y-2">
+            <h3 className="font-medium text-gray-800">
+              Age Requirements (Optional)
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                type="number"
+                placeholder="Min Age"
+                {...register("requirements.minAge", { valueAsNumber: true })}
+              />
+              <Input
+                type="number"
+                placeholder="Max Age"
+                {...register("requirements.maxAge", { valueAsNumber: true })}
+              />
+            </div>
+            <Select
+              onValueChange={(value) =>
+                setValue("requirements.genderPreference", value)
+              }
+              defaultValue={watch("requirements.genderPreference")}
+            >
+              <h3 className="font-medium text-gray-800">Gender Preference</h3>
+              <SelectTrigger>
+                <SelectValue placeholder="any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="any">Any</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="col-span-2 flex justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Creating..." : "Create Post"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
