@@ -7,16 +7,27 @@ const { createMatch } = require("../helpers/createMatch");
 // Create a new travel post
 exports.createTravelPost = async (req, res) => {
   try {
+    console.log(req.body);
     const {
       destination,
-      travelDates,
-      image,
       description,
       budget,
       travelStyle,
-      requirements,
     } = req.body;
 
+    const image = req.cloudinaryUrl;
+
+    const travelDates = {
+      start: req.body['travelDates.start'],
+      end: req.body['travelDates.end'],
+    };
+
+    const requirements = {
+      minAge: req.body['requirements.minAge'],
+      maxAge: req.body['requirements.maxAge'],
+    };
+
+    console.log(destination, travelDates, image, description, budget, travelStyle, requirements);
     // Validate required fields
     if (!destination || !travelDates?.start || !travelDates?.end) {
       return res.status(400).json({

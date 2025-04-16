@@ -59,8 +59,8 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
       // Prepare form data for submission
       const formData = new FormData();
       formData.append("destination", data.destination);
-      formData.append("travelDates.start", data["travelDates.start"]);
-      formData.append("travelDates.end", data["travelDates.end"]);
+      formData.append("travelDates.start", data.travelDates.start);
+      formData.append("travelDates.end", data.travelDates.end);
       if (data.image) formData.append("image", data.image);
       if (data.description) formData.append("description", data.description);
       if (data.budget) formData.append("budget", data.budget);
@@ -74,6 +74,8 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
           "requirements.genderPreference",
           data.requirements.genderPreference
         );
+
+      console.log(data)
 
       // Send POST request to create a travel post
       await axiosInstance.post("/posts", formData, {
