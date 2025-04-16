@@ -8,26 +8,29 @@ const { createMatch } = require("../helpers/createMatch");
 exports.createTravelPost = async (req, res) => {
   try {
     console.log(req.body);
-    const {
-      destination,
-      description,
-      budget,
-      travelStyle,
-    } = req.body;
+    const { destination, description, budget, travelStyle } = req.body;
 
     const image = req.cloudinaryUrl;
 
     const travelDates = {
-      start: req.body['travelDates.start'],
-      end: req.body['travelDates.end'],
+      start: req.body["travelDates.start"],
+      end: req.body["travelDates.end"],
     };
 
     const requirements = {
-      minAge: req.body['requirements.minAge'],
-      maxAge: req.body['requirements.maxAge'],
+      minAge: req.body["requirements.minAge"],
+      maxAge: req.body["requirements.maxAge"],
     };
 
-    console.log(destination, travelDates, image, description, budget, travelStyle, requirements);
+    console.log(
+      destination,
+      travelDates,
+      image,
+      description,
+      budget,
+      travelStyle,
+      requirements
+    );
     // Validate required fields
     if (!destination || !travelDates?.start || !travelDates?.end) {
       return res.status(400).json({
@@ -117,8 +120,15 @@ exports.closeTravelPost = async (req, res) => {
 // Get all travel posts with optional filters
 exports.getAllTravelPosts = async (req, res) => {
   try {
-    const { creatorId, budget, travelStyle, minAge, maxAge, genderPreference, description } =
-      req.query;
+    const {
+      creatorId,
+      budget,
+      travelStyle,
+      minAge,
+      maxAge,
+      genderPreference,
+      description,
+    } = req.query;
 
     const filter = {};
 
@@ -149,7 +159,8 @@ exports.getAllTravelPosts = async (req, res) => {
       filter.requirements = {};
       if (minAge) filter.requirements.minAge = { $gte: Number(minAge) };
       if (maxAge) filter.requirements.maxAge = { $lte: Number(maxAge) };
-      if (genderPreference) filter.requirements.genderPreference = genderPreference;
+      if (genderPreference)
+        filter.requirements.genderPreference = genderPreference;
     }
 
     // Text search in description
@@ -158,7 +169,9 @@ exports.getAllTravelPosts = async (req, res) => {
     }
 
     // Fetch filtered travel posts
-    const travelPosts = await TravelPost.find(filter);
+    const travelPosts = await TravelPost.find(filter)
+      .populate("creatorId", "_id username profilePicture")
+      .sort({ updatedAt: -1 });
 
     res.status(200).json({
       message: "Travel posts fetched successfully",
@@ -167,7 +180,9 @@ exports.getAllTravelPosts = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching travel posts:", error);
-    res.status(500).json({ message: "Failed to fetch travel posts", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch travel posts", error: error.message });
   }
 };
 
@@ -188,10 +203,14 @@ exports.deleteTravelPost = async (req, res) => {
       return res.status(404).json({ message: "Travel post not found" });
     }
 
-    res.status(200).json({ message: "Travel post deleted successfully", deletedPost });
+    res
+      .status(200)
+      .json({ message: "Travel post deleted successfully", deletedPost });
   } catch (error) {
     console.error("Error deleting travel post:", error);
-    res.status(500).json({ message: "Failed to delete travel post", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to delete travel post", error: error.message });
   }
 };
 
@@ -207,7 +226,9 @@ exports.updateTravelPost = async (req, res) => {
     }
 
     // Find and update the travel post
-    const updatedPost = await TravelPost.findByIdAndUpdate(postId, updateData, { new: true });
+    const updatedPost = await TravelPost.findByIdAndUpdate(postId, updateData, {
+      new: true,
+    });
 
     if (!updatedPost) {
       return res.status(404).json({ message: "Travel post not found" });
@@ -219,6 +240,8 @@ exports.updateTravelPost = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating travel post:", error);
-    res.status(500).json({ message: "Failed to update travel post", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to update travel post", error: error.message });
   }
 };

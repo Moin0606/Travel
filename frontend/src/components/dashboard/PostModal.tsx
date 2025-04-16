@@ -17,18 +17,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
-import { axiosInstance } from "../../lib/axios";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { useTravelPostStore } from "../../store/useTravelPostStore";
+
+// Define the form data structure
+interface FormData {
+  destination: string;
+  travelDates: {
+    start: string;
+    end: string;
+  };
+  image?: File | null;
+  description?: string;
+  budget?: number;
+  travelStyle?: string;
+  requirements: {
+    minAge?: number;
+    maxAge?: number;
+    genderPreference?: string;
+  };
+}
 
 interface PostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: () => void;
 }
 
-const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose }) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Zustand store actions
+  const { createPost } = useTravelPostStore();
 
   const {
     register,
@@ -36,7 +56,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
     setValue,
     watch,
     formState: { errors },
-  } = useForm();
+  } = useForm<FormData>();
 
   // Handle image file selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +72,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
   };
 
   // Submit handler
-  const onSubmitHandler = async (data: any) => {
+  const onSubmitHandler: SubmitHandler<FormData> = async (data) => {
     try {
       setLoading(true);
 
@@ -63,27 +83,28 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
       formData.append("travelDates.end", data.travelDates.end);
       if (data.image) formData.append("image", data.image);
       if (data.description) formData.append("description", data.description);
-      if (data.budget) formData.append("budget", data.budget);
+      if (data.budget) formData.append("budget", data.budget.toString());
       if (data.travelStyle) formData.append("travelStyle", data.travelStyle);
       if (data.requirements.minAge)
-        formData.append("requirements.minAge", data.requirements.minAge);
+        formData.append(
+          "requirements.minAge",
+          data.requirements.minAge.toString()
+        );
       if (data.requirements.maxAge)
-        formData.append("requirements.maxAge", data.requirements.maxAge);
+        formData.append(
+          "requirements.maxAge",
+          data.requirements.maxAge.toString()
+        );
       if (data.requirements.genderPreference)
         formData.append(
           "requirements.genderPreference",
           data.requirements.genderPreference
         );
 
-      console.log(data)
+      // Use the Zustand store's `createPost` method to create the post
+      await createPost(formData);
 
-      // Send POST request to create a travel post
-      await axiosInstance.post("/posts", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      // Close modal and trigger success callback
-      onSubmit();
+      // Close modal after successful creation
       onClose();
     } catch (error) {
       console.error("Error creating travel post:", error);
@@ -102,57 +123,54 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
           onSubmit={handleSubmit(onSubmitHandler)}
           className="space-y-4 grid grid-cols-2 grid-flow-row gap-x-6 gap-y-4"
         >
-          <div className="col-span-2 gap-4">
-            {/* Destination */}
+          {/* Destination */}
+          <div className="col-span-2">
+            <Label htmlFor="destination">Destination</Label>
+            <Input
+              id="destination"
+              placeholder="Enter destination"
+              {...register("destination", {
+                required: "Destination is required",
+              })}
+            />
+            {errors.destination && (
+              <p className="text-red-500 text-sm">
+                {errors.destination.message}
+              </p>
+            )}
+          </div>
+
+          {/* Travel Dates */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="destination" className="flex flex-col gap-4">
-                Destination
-              </Label>
+              <Label htmlFor="start-date">Start Date</Label>
               <Input
-                id="destination"
-                placeholder="Enter destination"
-                {...register("destination", {
-                  required: "Destination is required",
+                id="start-date"
+                type="date"
+                {...register("travelDates.start", {
+                  required: "Start date is required",
                 })}
               />
-              {errors.destination && (
+              {errors.travelDates?.start && (
                 <p className="text-red-500 text-sm">
-                  {errors.destination.message}
+                  {errors.travelDates.start.message}
                 </p>
               )}
             </div>
-            {/* Travel Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  {...register("travelDates.start", {
-                    required: "Start date is required",
-                  })}
-                />
-                {errors.travelDates?.start && (
-                  <p className="text-red-500 text-sm">
-                    {errors.travelDates.start.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="end-date">End Date</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  {...register("travelDates.end", {
-                    required: "End date is required",
-                  })}
-                />
-                {errors.travelDates?.end && (
-                  <p className="text-red-500 text-sm">
-                    {errors.travelDates.end.message}
-                  </p>
-                )}
-              </div>
+            <div>
+              <Label htmlFor="end-date">End Date</Label>
+              <Input
+                id="end-date"
+                type="date"
+                {...register("travelDates.end", {
+                  required: "End date is required",
+                })}
+              />
+              {errors.travelDates?.end && (
+                <p className="text-red-500 text-sm">
+                  {errors.travelDates.end.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -166,7 +184,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
               onChange={handleImageChange}
             />
             {imagePreview && (
-              <div className="">
+              <div className="mt-2">
                 <img
                   src={imagePreview}
                   alt="Preview"
@@ -251,6 +269,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
             </Select>
           </div>
 
+          {/* Footer Buttons */}
           <DialogFooter className="col-span-2 flex justify-end">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

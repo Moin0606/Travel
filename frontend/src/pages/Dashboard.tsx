@@ -32,26 +32,30 @@ import PostModal from "@/components/dashboard/PostModal";
 import Connect from "@/components/dashboard/Connect";
 import Message from "@/components/dashboard/Message";
 import { useAuthStore } from "../store/useAuthStore";
+import { useTravelPostStore } from "../store/useTravelPostStore"; 
 
 const Dashboard = () => {
   const { logout, authUser } = useAuthStore();
-
   const navigate = useNavigate();
+
+  // Zustand store state and actions
+  const { isLoading, fetchPosts} = useTravelPostStore();
+
   const [showEmail, setShowEmail] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [currentView, setCurrentView] = useState<
     "explore" | "matched" | "message"
   >("explore");
-  const [loggedInUser, setLoggedInUser] = useState("");
-  useEffect(() => {
-    setLoggedInUser(localStorage.getItem("token"));
-  }, []);
+
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchPosts(); 
+  }, [fetchPosts]);
 
   const handleLogout = () => {
     logout();
     localStorage.clear();
-    setLoggedInUser("");
     navigate("/", { state: { fromLogout: true } });
     window.location.reload();
   };
@@ -66,14 +70,6 @@ const Dashboard = () => {
 
   const closePostModal = () => {
     setIsPostModalOpen(false);
-  };
-
-  const handlePostSubmit = () => {
-    closePostModal();
-    toast({
-      title: "Post created!",
-      description: "Your travel post has been shared with the community.",
-    });
   };
 
   const navigateToBooking = () => {
@@ -134,9 +130,8 @@ const Dashboard = () => {
                   <span>Trips</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-          
 
-          <SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton tooltip="Book" onClick={navigateToBooking}>
                   <Hotel />
                   <span>Book</span>
@@ -181,7 +176,6 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </SidebarFooter>
-
         </Sidebar>
 
         {/* Main Content */}
@@ -220,7 +214,13 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {currentView === "explore" ? <PostFeed /> : <Message />}
+              {isLoading ? (
+                <p>Loading...</p>
+              ) : currentView === "explore" ? (
+                <PostFeed/>
+              ) : (
+                <Message />
+              )}
             </div>
           </main>
         </div>
@@ -229,7 +229,6 @@ const Dashboard = () => {
       <PostModal
         isOpen={isPostModalOpen}
         onClose={closePostModal}
-        onSubmit={handlePostSubmit}
       />
     </SidebarProvider>
   );
