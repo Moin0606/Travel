@@ -9,7 +9,6 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  // image setting
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
