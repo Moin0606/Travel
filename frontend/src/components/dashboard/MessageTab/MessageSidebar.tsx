@@ -36,8 +36,8 @@ const MessageSidebar = () => {
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
-      <div className="border-b border-base-300 w-full p-5">
+    <aside className="h-full w-20 lg:w-72 border-r-2 border-base-300 flex flex-col transition-all duration-50">
+      <div className="border border-base-300 w-full p-4 bg-slate-200">
         <div className="flex items-center gap-2">
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
@@ -53,13 +53,15 @@ const MessageSidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
-          <span className="text-xs text-zinc-500">
-            ({onlineUsers.length - 1 > 0 ? onlineUsers.length-1 : 0} online)
-          </span>
+          {
+            <span className="text-xs text-zinc-500">
+              ({onlineUsers.length} online)
+            </span>
+          }
         </div>
       </div>
 
-      <div className="overflow-y-auto w-full py-3">
+      <div className="overflow-y-auto w-full py-3 bg-slate-100">
         {filteredUsers.map((user) => (
           <button
             key={user._id}
@@ -90,7 +92,7 @@ const MessageSidebar = () => {
 
             {/* User info - only visible on larger screens */}
             <div className="hidden lg:block text-left min-w-0">
-              <div className="font-medium truncate">{user.fullName}</div>
+              <div className="font-medium truncate">{user.username}</div>
               <div className="text-sm text-zinc-400">
                 {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
