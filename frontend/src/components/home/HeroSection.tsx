@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowRight } from "lucide-react";
 import SearchForm from "../ui/SearchForm";
 import { toast } from "sonner";
-
+import { Navigate } from "react-router-dom";
 const HeroSection = () => {
   const handleSearch = (formData: any) => {
     // In a real app, this would search for travel options
@@ -12,7 +12,7 @@ const HeroSection = () => {
 
   const handleExplore = () => {
     // In a real app, this would take users to a Sri Lanka exploration page
-    toast.success("Let's explore Sri Lanka together!");
+    toast.success("Redirect to dashboard!");
   };
 
   return (
@@ -38,7 +38,7 @@ const HeroSection = () => {
             onClick={handleExplore}
             className="inline-flex items-center text-white border-2 border-white hover:bg-white hover:text-travely-blue transition-colors duration-300 font-semibold py-3 px-6 rounded-md"
           >
-            Explore Sri Lanka
+            Explore
             <ArrowRight className="ml-2" size={18} />
           </button>
         </div>

@@ -14,9 +14,11 @@ const registerUser = async (req, res) => {
     address,
     phoneNumber,
     verificationDocument,
-    role
-  }  = req.body;
+    travelPreferences,
+    role,
+  } = req.body;
 
+  const { destinations, budgetRange, travelStyles } = travelPreferences;
 
   try {
     if (!username || !email || !password) {
@@ -44,8 +46,14 @@ const registerUser = async (req, res) => {
       address,
       phoneNumber,
       verificationDocument,
+      travelPreferences: {
+        destinations,
+        budgetRange,
+        travelStyles,
+      },
       role,
     });
+
     if (newUser) {
       await newUser.save();
       generateToken(newUser._id, res);
@@ -53,7 +61,6 @@ const registerUser = async (req, res) => {
         _id: newUser._id,
         username: newUser.username,
         email: newUser.email,
-        
       });
     } else {
       return res.status(400).json({ message: "User registration failed" });
@@ -80,16 +87,16 @@ const loginUser = async (req, res) => {
 
     // Generate JWT token
     generateToken(user._id, res);
-    
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Origin', 'http://localhost:8080');
-    
+
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Origin", "http://localhost:8080");
+
     res.status(200).json({
       _id: user._id,
       username: user.username,
       email: user.email,
       token: generateToken(user._id, res),
-      role:user.role
+      role: user.role,
     });
   } catch (error) {
     console.log("Error in Login controller", error.message);
@@ -120,10 +127,10 @@ const checkAuth = (req, res) => {
 
 const allUser = async (req, res) => {
   try {
-    const users = await User.find({ role: 'user' });
+    const users = await User.find({ role: "user" });
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -135,14 +142,14 @@ const acceptUser = async (req, res) => {
       { isVerified: true },
       { new: true }
     );
-    
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
-    
-    res.json({ message: 'User verified successfully', user });
+
+    res.json({ message: "User verified successfully", user });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -153,14 +160,14 @@ const rejectUser = async (req, res) => {
       { isVerified: false },
       { new: true }
     );
-    
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
-    
-    res.json({ message: 'User rejected successfully', user });
+
+    res.json({ message: "User rejected successfully", user });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };
 const updateProfile = async (req, res) => {
@@ -199,6 +206,5 @@ module.exports = {
   allUser,
   acceptUser,
   rejectUser,
-  updateProfile
-
+  updateProfile,
 };
