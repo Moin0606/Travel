@@ -187,6 +187,7 @@ exports.getOtherUserMatchStatus = async (req, res) => {
     res.status(200).json({
       message: "Match status retrieved successfully",
       status: otherUserMatch.status,
+      match: otherUserMatch,
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to retrieve match status", error: error.message });

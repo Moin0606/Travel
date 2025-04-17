@@ -123,7 +123,7 @@ export const useMatchStore = create<MatchStoreState & MatchStoreActions>((set, g
       const res = await axiosInstance.get<{ status: string }>(
         `/matches/${postId}/other-user-status`
       );
-      return res.data.status; // Return the status directly
+      return res.data; // Return the status directly
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch match status");
       throw error;
