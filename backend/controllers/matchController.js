@@ -1,7 +1,9 @@
 const Match = require("../models/matchModel");
 const Trip = require("../models/tripModel");
 const TravelPost = require("../models/travelPostModel");
-const approveMatch = require("../helpers/approveMatch")
+const approveMatch = require("../helpers/approveMatch");
+const mongoose = require("mongoose");
+
 // Update match status (e.g., accept or reject)
 exports.approveMatch = async (req, res) => {
   try {
@@ -116,18 +118,37 @@ async function createTrip(postId, participants) {
 
 exports.getUserMatches = async (req, res) => {
   try {
-    const { userId } = req.user._id;
+    // Ensure the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized: User not authenticated" });
+    }
+
+    // Extract the user ID from the authenticated user
+    const { _id: userId } = req.user;
 
     // Find all matches where the user is involved
     const matches = await Match.find({ userId })
-      .populate("postId", "destination") // Populate the travel post details
+      .populate({
+        path: "postId",
+        populate: {
+          path: "creatorId", // Populate the creatorId from the postId
+          model: "User" // Assuming the creatorId refers to the User model
+        }
+      }) // Populate the travel post details
+      .populate("userId") // Populate the user details
       .sort({ createdAt: -1 }); // Sort by most recent
 
-    res.status(200).json(matches);
+    // Return the matches
+    res.status(200).json({
+      message: "Matches fetched successfully",
+      matches,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch matches", error: error.message });
+    console.error("Error fetching matches:", error);
+    res.status(500).json({
+      message: "Failed to fetch matches",
+      error: error.message,
+    });
   }
 };
 
@@ -155,8 +176,8 @@ exports.getOtherUserMatchStatus = async (req, res) => {
     // Find the match for the other user
     const otherUserMatch = await Match.findOne({
       postId,
-      userId: otherUserId,
-    });
+      userId:  { $ne: userId },
+    }).populate('userId');
 
     if (!otherUserMatch) {
       return res.status(404).json({ message: "No match found for the other user" });

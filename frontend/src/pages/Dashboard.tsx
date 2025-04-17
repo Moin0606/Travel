@@ -29,17 +29,19 @@ import { useToast } from "@/hooks/use-toast";
 
 import PostFeed from "@/components/dashboard/PostFeed";
 import PostModal from "@/components/dashboard/PostModal";
-import Connect from "@/components/dashboard/Connect";
+import MatchList from "@/components/dashboard/MatchList"; // Import MatchList
 import Message from "@/components/dashboard/Message";
 import { useAuthStore } from "../store/useAuthStore";
-import { useTravelPostStore } from "../store/useTravelPostStore"; 
+import { useTravelPostStore } from "../store/useTravelPostStore";
+import { useMatchStore } from "../store/useMatchStore"; // Import MatchStore
 
 const Dashboard = () => {
   const { logout, authUser } = useAuthStore();
   const navigate = useNavigate();
 
   // Zustand store state and actions
-  const { isLoading, fetchPosts} = useTravelPostStore();
+  const { isLoading: isPostLoading, fetchPosts } = useTravelPostStore();
+  const { fetchUserMatches, matches, isLoading: isMatchLoading } = useMatchStore();
 
   const [showEmail, setShowEmail] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -49,9 +51,19 @@ const Dashboard = () => {
 
   const { toast } = useToast();
 
+  // Fetch posts when the component mounts or switches to "Explore" view
   useEffect(() => {
-    fetchPosts(); 
-  }, [fetchPosts]);
+    if (currentView === "explore") {
+      fetchPosts();
+    }
+  }, [fetchPosts, currentView]);
+
+  // Fetch matches when switching to "Connect" view
+  useEffect(() => {
+    if (currentView === "matched") {
+      fetchUserMatches();
+    }
+  }, [fetchUserMatches, currentView]);
 
   const handleLogout = () => {
     logout();
@@ -200,7 +212,11 @@ const Dashboard = () => {
             <div className="max-w-4xl mx-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  {currentView === "explore" ? "Explore" : "Matched Users"}
+                  {currentView === "explore"
+                    ? "Explore"
+                    : currentView === "matched"
+                    ? "Matched Users"
+                    : "Messages"}
                 </h2>
                 {currentView === "explore" && (
                   <Button
@@ -214,10 +230,15 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {isLoading ? (
-                <p>Loading...</p>
+              {/* Conditional Rendering Based on Current View */}
+              {currentView === "explore" && isPostLoading ? (
+                <p>Loading posts...</p>
               ) : currentView === "explore" ? (
-                <PostFeed/>
+                <PostFeed />
+              ) : currentView === "matched" && isMatchLoading ? (
+                <p>Loading matches...</p>
+              ) : currentView === "matched" ? (
+                <MatchList />
               ) : (
                 <Message />
               )}

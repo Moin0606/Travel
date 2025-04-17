@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import { useToast } from "@/hooks/use-toast";
+import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 
-const { toast } = useToast();
 export const useTravelPostStore = create((set, get) => ({
   // State Properties
   posts: [], // List of travel posts

@@ -1,53 +1,19 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import axios from "axios";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const { authUser } = useAuthStore();
-  const [currentUser, setCurrentUser] = useState(null);
+  const { authUser, checkAuth } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
-  const getCurrentUser = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        "http://localhost:5000/api/users/current",
-        {
-          withCredentials: true,
-        }
-      );
-
-      if (response.data?.success && response.data?.user) {
-        setCurrentUser(response.data.user);
-        return response.data.user;
-      }
-      setCurrentUser(null);
-      return null;
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-      setCurrentUser(null);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    getCurrentUser();
-  }, [authUser]);
+    checkAuth().finally(() => setLoading(false));
+  }, [checkAuth]);
 
   const value = {
-    currentUser,
+    currentUser: authUser,
     loading,
-    getCurrentUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
