@@ -20,9 +20,7 @@ describe("findPotentialMatches", () => {
     await mongoose.disconnect();
   });
 
-  beforeEach(async () => {
-    await User.deleteMany({});
-    await TravelPost.deleteMany({});
+  beforeEach(async () => { 
   });
 
   it("should find potential matches based on age, gender, and preferences", async () => {

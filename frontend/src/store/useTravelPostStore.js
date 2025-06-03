@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
+import axios from "axios";
 
 export const useTravelPostStore = create((set, get) => ({
   // State Properties
@@ -36,15 +37,39 @@ export const useTravelPostStore = create((set, get) => ({
   },
 
   // Create a new travel post
-  createPost: async (postData) => {
-    try {
-      const res = await axiosInstance.post("/posts", postData);
-      set((state) => ({ posts: [res.data, ...state.posts] })); // Add new post to the top of the list
-      toast.success("Post created successfully!");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create post");
-    }
-  },
+
+createPost: async (postData) => {
+  // Optional: Log form data if postData is FormData
+  console.log("Form Data:");
+  for (let [key, value] of postData.entries()) {
+    console.log(key, ":", value);
+  }
+
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/api/posts", // Full URL
+      postData, // body — either a plain object or FormData
+      {
+        // Custom config
+        headers: {
+          "Content-Type": "multipart/form-data", // Set only if using FormData
+        },
+        withCredentials: true, // Include cookies (e.g. auth tokens)
+      }
+    );
+
+    // Handle success
+    set((state) => ({
+      posts: [response.data, ...state.posts],
+    }));
+    toast.success("Post created successfully!");
+  } catch (error) {
+    // Handle error
+    const errorMessage =
+      error.response?.data?.message || "Failed to create post";
+    toast.error(errorMessage);
+  }
+},
 
   // Update an existing travel post
   updatePost: async (postId, updatedData) => {

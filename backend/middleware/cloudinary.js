@@ -50,47 +50,65 @@ const upload = multer({
 // Middleware to handle file upload and Cloudinary integration
 const cloudinaryUploadMiddleware = async (req, res, next) => {
   try {
-    // Handle file upload using multer
+    console.log("☁️ Starting cloudinaryUploadMiddleware");
+
+    // Run multer upload
     await new Promise((resolve, reject) => {
       upload(req, res, (err) => {
         if (err) {
-          return reject(err);
+          console.error("❌ Multer error:", err.message);
+          return res.status(400).json({
+            message: "File upload failed",
+            error: err.message,
+          });
         }
         resolve();
       });
     });
 
-    // Check if a file was uploaded
+    // Image is optional
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded." });
+      console.warn("⚠️ No image uploaded — proceeding without it");
+      return next(); // Proceed without image
     }
 
-    // Generate a unique filename for Cloudinary
+    console.log("📄 File received:", {
+      originalname: req.file.originalname,
+      path: req.file.path,
+      size: req.file.size,
+    });
+
+    // Generate unique filename
     const baseName = req.file.originalname.split(".").slice(0, -1).join(".");
     const sanitizedBaseName = sanitize(baseName);
-    const truncatedBaseName = sanitizedBaseName.substring(0, 50); // Limit to 50 characters
+    const truncatedBaseName = sanitizedBaseName.substring(0, 50);
     const uniqueFileName = `${uuidv4()}-${truncatedBaseName}`;
 
-    // Log the generated filename for debugging
-    console.log("Generated uniqueFileName:", uniqueFileName);
+    console.log("📁 Generated Cloudinary filename:", uniqueFileName);
 
-    // Upload the file from disk to Cloudinary
-    const filePath = req.file.path; // Path to the file saved on disk
+    // Upload to Cloudinary
+    const filePath = req.file.path;
     const cloudinaryResponse = await cloudinary.uploader.upload(filePath, {
       public_id: uniqueFileName,
       resource_type: "image",
     });
 
-    // Attach the Cloudinary URL to the request object
+    console.log("✅ Uploaded to Cloudinary:", cloudinaryResponse.secure_url);
+
+    // Attach URL to request
     req.cloudinaryUrl = cloudinaryResponse.secure_url;
 
-    // Optionally, delete the file from disk after uploading to Cloudinary
-    fs.unlinkSync(filePath); // Delete the file
+    // Clean up local file
+    fs.unlinkSync(filePath);
+    console.log("🗑️ Local file deleted:", filePath);
 
-    next(); // Proceed to the next middleware or route handler
+    next(); // Move on
   } catch (error) {
-    console.error("Error during file upload:", error);
-    res.status(500).json({ message: "File upload failed", error: error.message });
+    console.error("🔥 Unexpected error during upload:", error.message);
+    return res.status(500).json({
+      message: "Internal server error during file upload",
+      error: error.message,
+    });
   }
 };
 

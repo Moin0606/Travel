@@ -42,16 +42,11 @@ describe("Travel Post Controller (Integration Tests)", () => {
     );
   });
 
-  afterAll(async () => {
-    // Clear the database and disconnect
-    await User.deleteMany({});
-    await TravelPost.deleteMany({});
+  afterAll(async () => { 
     await mongoose.disconnect();
   });
 
-  afterEach(async () => {
-    // Clear all collections after each test
-    await TravelPost.deleteMany({});
+  afterEach(async () => { 
   });
 
   describe("POST /api/posts", () => {

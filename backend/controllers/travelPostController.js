@@ -7,20 +7,20 @@ const { createMatch } = require("../helpers/createMatch");
 // Create a new travel post
 exports.createTravelPost = async (req, res) => {
   try {
-    console.log(req.body);
-    const { destination, description, budget, travelStyle } = req.body;
+    console.log("Reached createTravelPost controller");
+    console.log("req.body:", req.body);
 
-    const image = req.cloudinaryUrl;
+    const travelDates = JSON.parse(req.body.travelDates || '{}');
+    const requirements = JSON.parse(req.body.requirements || '{}');
 
-    const travelDates = {
-      start: req.body["travelDates.start"],
-      end: req.body["travelDates.end"],
-    };
+    const {
+      destination,
+      description,
+      budget,
+      travelStyle
+    } = req.body;
 
-    const requirements = {
-      minAge: req.body["requirements.minAge"],
-      maxAge: req.body["requirements.maxAge"],
-    };
+    const image = req.cloudinaryUrl || null; // Allow image to be optional
 
     console.log(
       destination,
@@ -31,8 +31,9 @@ exports.createTravelPost = async (req, res) => {
       travelStyle,
       requirements
     );
+
     // Validate required fields
-    if (!destination || !travelDates?.start || !travelDates?.end) {
+    if (!destination || !travelDates.start || !travelDates.end) {
       return res.status(400).json({
         message: "Destination and travel dates (start & end) are required.",
       });
@@ -52,14 +53,13 @@ exports.createTravelPost = async (req, res) => {
       creatorId,
       destination,
       travelDates,
-      image,
+      image, // may be null
       description,
       budget,
       travelStyle,
       requirements,
     });
 
-    // Save the travel post to the database
     await newTravelPost.save();
 
     // Trigger matching algorithm
@@ -82,7 +82,6 @@ exports.createTravelPost = async (req, res) => {
     });
   }
 };
-
 // Close a travel post
 exports.closeTravelPost = async (req, res) => {
   try {

@@ -73,46 +73,51 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose }) => {
 
   // Submit handler
   const onSubmitHandler: SubmitHandler<FormData> = async (data) => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Prepare form data for submission
-      const formData = new FormData();
-      formData.append("destination", data.destination);
-      formData.append("travelDates.start", data.travelDates.start);
-      formData.append("travelDates.end", data.travelDates.end);
-      if (data.image) formData.append("image", data.image);
-      if (data.description) formData.append("description", data.description);
-      if (data.budget) formData.append("budget", data.budget.toString());
-      if (data.travelStyle) formData.append("travelStyle", data.travelStyle);
-      if (data.requirements.minAge)
-        formData.append(
-          "requirements.minAge",
-          data.requirements.minAge.toString()
-        );
-      if (data.requirements.maxAge)
-        formData.append(
-          "requirements.maxAge",
-          data.requirements.maxAge.toString()
-        );
-      if (data.requirements.genderPreference)
-        formData.append(
-          "requirements.genderPreference",
-          data.requirements.genderPreference
-        );
+    const formData = new FormData();
 
-      // Use the Zustand store's `createPost` method to create the post
-      await createPost(formData);
+    // Append simple fields
+    formData.append("destination", data.destination);
+    if (data.description) formData.append("description", data.description);
+    if (data.budget) formData.append("budget", data.budget.toString());
+    if (data.travelStyle) formData.append("travelStyle", data.travelStyle);
 
-      // Close modal after successful creation
-      onClose();
-    } catch (error) {
-      console.error("Error creating travel post:", error);
-    } finally {
-      setLoading(false);
+    // Serialize nested objects
+    formData.append("travelDates", JSON.stringify({
+      start: data.travelDates.start,
+      end: data.travelDates.end,
+    }));
+
+    formData.append("requirements", JSON.stringify({
+      minAge: data.requirements.minAge ? Number(data.requirements.minAge) : undefined,
+      maxAge: data.requirements.maxAge ? Number(data.requirements.maxAge) : undefined,
+      genderPreference: data.requirements.genderPreference,
+    }));
+
+    // Append image if present
+    if (data.image) {
+      formData.append("image", data.image);
     }
-  };
 
+    // Log all form data entries for debugging
+    console.log("FormData contents:");
+    for (const [key, value] of formData.entries()) {
+      console.log(key, ":", value);
+    }
+
+    // Send request
+    await createPost(formData);
+
+    onClose();
+  } catch (error) {
+    console.error("Error creating post", error);
+  } finally {
+    setLoading(false);
+  }
+};
+   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-fit max-h-[90vh] overflow-scroll no-scrollbar">
