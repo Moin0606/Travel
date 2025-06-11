@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { ChangeEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import {
@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/useAuthStore";
+import { Input } from "@/components/ui/input";
 
 const Register = () => {
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const { signup } = useAuthStore();
@@ -25,18 +27,21 @@ const Register = () => {
     username: "",
     email: "",
     password: "",
-    profilePicture: "",
     age: "",
     gender: "",
     address: "",
     phoneNumber: "",
     verificationDocument: "",
     travelPreferences: {
-      destinations: [],
+      destinations: [] as string[],
       budgetRange: { min: "", max: "" },
-      travelStyles: [],
+      travelStyles: [] as string[],
     },
   });
+
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(
+    null
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +49,6 @@ const Register = () => {
     const {
       username,
       email,
-      password,
-      profilePicture,
       age,
       gender,
       address,
@@ -53,36 +56,89 @@ const Register = () => {
       verificationDocument,
     } = formData;
 
-    if (
-      !username ||
-      !email ||
-      !password ||
-      !confirmPassword ||
-      !profilePicture ||
-      !age ||
-      !gender ||
-      !address ||
-      !phoneNumber ||
-      !verificationDocument
-    ) {
-      toast.error("Please fill in all fields");
+    const requiredFields = [
+      { value: username, name: "username", label: "Username" },
+      { value: email, name: "email", label: "Email" },
+      { value: password, name: "password", label: "Password" },
+      {
+        value: confirmPassword,
+        name: "confirmPassword",
+        label: "Confirm Password",
+      },
+      {
+        value: profilePictureFile,
+        name: "profilePicture",
+        label: "Profile Picture",
+      },
+      { value: age, name: "age", label: "Age" },
+      { value: gender, name: "gender", label: "Gender" },
+      { value: address, name: "address", label: "Address" },
+      { value: phoneNumber, name: "phoneNumber", label: "Phone Number" },
+      {
+        value: verificationDocument,
+        name: "verificationDocument",
+        label: "Verification Document",
+      },
+    ];
+
+    // Check for missing fields
+    const missingFields = requiredFields.filter((field) => {
+      // Handle empty strings, null, undefined, empty arrays
+      if (Array.isArray(field.value)) {
+        return field.value.length === 0;
+      }
+      if (typeof field.value === "object" && field.value !== null) {
+        return Object.values(field.value).every((val) => !val);
+      }
+      return !field.value;
+    });
+
+    if (missingFields.length > 0) {
+      console.log(
+        "Missing form data:",
+        missingFields.map((f) => f.name)
+      );
+      console.log("Current form state:", formData);
+
+      // Generate user-friendly error message
+      if (missingFields.length === 1) {
+        toast.error(`${missingFields[0].label} is required`);
+      } else {
+        const fieldNames = missingFields.map((f) => f.label).join(", ");
+        toast.error(`Please fill in: ${fieldNames}`);
+      }
       return;
     }
-
-    if (formData.password !== confirmPassword) {
+    if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
 
-    setFormData((prev) => ({ ...prev, password }));
+    const finalFormData = new FormData();
+    finalFormData.append("username", username);
+    finalFormData.append("email", email);
+    finalFormData.append("password", password);
+    finalFormData.append("age", age);
+    finalFormData.append("gender", gender);
+    finalFormData.append("address", address);
+    finalFormData.append("phoneNumber", phoneNumber);
+    finalFormData.append("verificationDocument", verificationDocument);
+    finalFormData.append(
+      "travelPreferences",
+      JSON.stringify(formData.travelPreferences)
+    );
 
-    signup(formData);
-    toast.success("Registration successful!");
+    if (profilePictureFile) {
+      finalFormData.append("profilePicture", profilePictureFile);
+    }
+
+    signup(finalFormData);
+
+    // Reset form
     setFormData({
       username: "",
       email: "",
       password: "",
-      profilePicture: "",
       age: "",
       gender: "",
       address: "",
@@ -96,12 +152,26 @@ const Register = () => {
     });
     setPassword("");
     setConfirmPassword("");
+    setImagePreview(null);
+    setProfilePictureFile(null);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setProfilePictureFile(file);
+      setFormData((prev) => ({ ...prev, profilePicture: file.name }));
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-
       <div className="pt-16 md:pt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden animate-scale-in">
@@ -109,7 +179,6 @@ const Register = () => {
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
                 SIGN UP
               </h2>
-
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Full Name */}
                 <InputField
@@ -121,7 +190,6 @@ const Register = () => {
                     setFormData({ ...formData, username: e.target.value })
                   }
                 />
-
                 {/* Email */}
                 <InputField
                   id="email"
@@ -133,7 +201,6 @@ const Register = () => {
                     setFormData({ ...formData, email: e.target.value })
                   }
                 />
-
                 {/* Password */}
                 <InputField
                   id="password"
@@ -146,7 +213,6 @@ const Register = () => {
                     setFormData({ ...formData, password: e.target.value });
                   }}
                 />
-
                 {/* Confirm Password */}
                 <InputField
                   id="confirmPassword"
@@ -156,7 +222,6 @@ const Register = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
-
                 {/* Age */}
                 <InputField
                   id="age"
@@ -168,7 +233,6 @@ const Register = () => {
                     setFormData({ ...formData, age: e.target.value })
                   }
                 />
-
                 {/* Gender */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -200,7 +264,6 @@ const Register = () => {
                     setFormData({ ...formData, address: e.target.value })
                   }
                 />
-
                 {/* Phone Number */}
                 <InputField
                   id="phoneNumber"
@@ -211,17 +274,30 @@ const Register = () => {
                     setFormData({ ...formData, phoneNumber: e.target.value })
                   }
                 />
-
-                {/* Profile Picture URL */}
-                <InputField
-                  id="profilePicture"
-                  icon={<Image size={18} />}
-                  placeholder="Profile picture URL"
-                  value={formData.profilePicture}
-                  onChange={(e) =>
-                    setFormData({ ...formData, profilePicture: e.target.value })
-                  }
-                />
+                {/* Profile Picture Upload */}
+                <div>
+                  <label
+                    htmlFor="profilePicture"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Profile Picture
+                  </label>
+                  <Input
+                    id="profilePicture"
+                    type="file"
+                    accept="image/jpeg, image/png, image/webp"
+                    onChange={handleImageChange}
+                  />
+                  {imagePreview && (
+                    <div className="mt-2">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* Travel Destinations */}
                 <InputField
@@ -317,7 +393,7 @@ const Register = () => {
                   </div>
                 </div>
 
-                {/* Verification Document URL */}
+                {/* Verification Document */}
                 <InputField
                   id="verificationDocument"
                   icon={<File size={18} />}
@@ -338,7 +414,6 @@ const Register = () => {
                   Sign Up
                 </button>
               </form>
-
               <div className="mt-8 border-t border-gray-200 pt-6 text-center">
                 <p className="text-sm text-gray-600">
                   Already have an account?{" "}
