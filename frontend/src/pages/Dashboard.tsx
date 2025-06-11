@@ -158,7 +158,7 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10 border border-gray-200">
                     <AvatarImage
-                      src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${authUser?.username || "User"}`}
+                      src={authUser.profilePicture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${authUser?.username || "User"}`}
                       alt="User avatar"
                     />
                     <AvatarFallback>

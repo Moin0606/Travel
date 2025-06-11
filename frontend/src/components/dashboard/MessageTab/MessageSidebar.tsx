@@ -27,7 +27,7 @@ const MessageSidebar = () => {
   const getUserProfilePic = (user) => {
     const defaultAvatar = "/avatar.png";
     return (
-      user.profilePic ||
+      user.profilePicture ||
       `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}` ||
       defaultAvatar
     );

@@ -1,6 +1,5 @@
-import React from 'react';
 import Navbar from '@/components/layout/Navbar';
-import { Mail, User, Home, CalendarCheck, BadgeCheck, UserCircle } from 'lucide-react';
+import { Mail, Home, CalendarCheck, BadgeCheck, UserCircle } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore'; // Adjust path if needed
 import { useNavigate } from 'react-router-dom';
 
@@ -25,7 +24,7 @@ const Profile = () => {
             <div className="flex flex-col items-center mb-8">
               <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-blue-400 shadow-md mb-4">
                 <img 
-                  src={authUser.avatar} 
+                  src={authUser.profilePicture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${authUser?.username || "User"}`} 
                   alt={authUser.username} 
                   className="w-full h-full object-cover"
                 />
