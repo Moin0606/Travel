@@ -17,13 +17,15 @@ const registerUser = async (req, res) => {
     travelPreferences,
     role,
   } = req.body;
-
+  
   const { destinations, budgetRange, travelStyles } = travelPreferences;
 
   try {
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
+    const profilePicture = req.cloudinaryUrl;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {

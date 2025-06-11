@@ -31,6 +31,7 @@ const Register = () => {
     gender: "",
     address: "",
     phoneNumber: "",
+    image: "",
     verificationDocument: "",
     travelPreferences: {
       destinations: [] as string[],
@@ -66,8 +67,8 @@ const Register = () => {
         label: "Confirm Password",
       },
       {
-        value: profilePictureFile,
-        name: "profilePicture",
+        value: profilePictureFile ? profilePictureFile : null,
+        name: "image",
         label: "Profile Picture",
       },
       { value: age, name: "age", label: "Age" },
@@ -88,9 +89,16 @@ const Register = () => {
         return field.value.length === 0;
       }
       if (typeof field.value === "object" && field.value !== null) {
+        // Skip checking instanceof File
+        if ("name" in field.value && "size" in field.value) {
+          // It's a file object, treat as valid if present
+          return false;
+        }
         return Object.values(field.value).every((val) => !val);
       }
-      return !field.value;
+      return (
+        !field.value || (typeof field.value === "string" && !field.value.trim())
+      );
     });
 
     if (missingFields.length > 0) {
@@ -128,32 +136,34 @@ const Register = () => {
       JSON.stringify(formData.travelPreferences)
     );
 
+    console.log("Profile Picture File:", profilePictureFile);
     if (profilePictureFile) {
-      finalFormData.append("profilePicture", profilePictureFile);
+      finalFormData.append("image", profilePictureFile);
     }
 
     signup(finalFormData);
 
     // Reset form
-    setFormData({
-      username: "",
-      email: "",
-      password: "",
-      age: "",
-      gender: "",
-      address: "",
-      phoneNumber: "",
-      verificationDocument: "",
-      travelPreferences: {
-        destinations: [],
-        budgetRange: { min: "", max: "" },
-        travelStyles: [],
-      },
-    });
-    setPassword("");
-    setConfirmPassword("");
-    setImagePreview(null);
-    setProfilePictureFile(null);
+    // setFormData({
+    //   username: "",
+    //   email: "",
+    //   password: "",
+    //   age: "",
+    //   gender: "",
+    //   address: "",
+    //   phoneNumber: "",
+    //   image: "",
+    //   verificationDocument: "",
+    //   travelPreferences: {
+    //     destinations: [],
+    //     budgetRange: { min: "", max: "" },
+    //     travelStyles: [],
+    //   },
+    // // });
+    // setPassword("");
+    // setConfirmPassword("");
+    // setImagePreview(null);
+    // setProfilePictureFile(null);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +175,10 @@ const Register = () => {
       };
       reader.readAsDataURL(file);
       setProfilePictureFile(file);
-      setFormData((prev) => ({ ...prev, profilePicture: file.name }));
+      setFormData((prev) => ({
+        ...prev,
+        image: file.name,
+      }));
     }
   };
 
@@ -277,13 +290,13 @@ const Register = () => {
                 {/* Profile Picture Upload */}
                 <div>
                   <label
-                    htmlFor="profilePicture"
+                    htmlFor="image"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Profile Picture
                   </label>
                   <Input
-                    id="profilePicture"
+                    id="image"
                     type="file"
                     accept="image/jpeg, image/png, image/webp"
                     onChange={handleImageChange}

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import io from "socket.io-client";
+import axios from "axios";
 
 const BaseURL = "http://localhost:5000";
 
@@ -29,6 +30,11 @@ export const useAuthStore = create((set, get) => ({
 
   signup: async (data) => {
     set({ isSigningUp: true });
+      console.log("Form Data:");
+    for (let [key, value] of data.entries()) {
+      console.log(key, ":", value);
+    }
+
     try { 
       const res = await axios.post(
       "http://localhost:5000/api/users/register",  
@@ -39,6 +45,7 @@ export const useAuthStore = create((set, get) => ({
         }
       }
     );
+    console.log("Res: ",res);
       set({ authUser: res.data });
       toast.success("Account Created Successfully!");
       get().connectSocket();
