@@ -38,12 +38,7 @@ export const useAuthStore = create((set, get) => ({
     try { 
       const res = await axios.post(
       "http://localhost:5000/api/users/register",  
-      data,  
-      { 
-        headers: {
-          "Content-Type": "multipart/form-data",  
-        }
-      }
+      data, 
     );
     console.log("Res: ",res);
       set({ authUser: res.data });

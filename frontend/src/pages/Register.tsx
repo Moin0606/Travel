@@ -8,165 +8,106 @@ import {
   CheckCircle,
   Phone,
   MapPin,
-  File,
-  Image,
+  File as LucideFile,
+  Image as LucideImage,
   Calendar,
   UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/useAuthStore";
 import { Input } from "@/components/ui/input";
+import { useForm, SubmitHandler } from "react-hook-form";
+
+// Define types for form data
+interface TravelPreferences {
+  destinations: string[];
+  budgetRange: {
+    min: string;
+    max: string;
+  };
+  travelStyles: string[];
+}
+
+interface FormData {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  age: string;
+  gender: string;
+  address: string;
+  phoneNumber: string;
+  image: FileList;
+  verificationDocument: FileList;
+  destinations: string;
+  budgetMin: string;
+  budgetMax: string;
+  travelStyles: string[];
+}
 
 const Register = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [docPreview, setDocPreview] = useState<string | null>(null);
   const { signup } = useAuthStore();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setError,
+    setValue,
+    watch,
+  } = useForm<FormData>();
 
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    age: "",
-    gender: "",
-    address: "",
-    phoneNumber: "",
-    image: "",
-    verificationDocument: "",
-    travelPreferences: {
-      destinations: [] as string[],
-      budgetRange: { min: "", max: "" },
-      travelStyles: [] as string[],
-    },
-  });
+  // Watch passwords to validate confirmation
+  const password = watch("password");
+  const confirmPassword = watch("confirmPassword");
 
-  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(
-    null
-  );
+  const onSubmit: SubmitHandler<FormData> = (data) => {
+    const formData = new FormData();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const {
-      username,
-      email,
-      age,
-      gender,
-      address,
-      phoneNumber,
-      verificationDocument,
-    } = formData;
-
-    const requiredFields = [
-      { value: username, name: "username", label: "Username" },
-      { value: email, name: "email", label: "Email" },
-      { value: password, name: "password", label: "Password" },
-      {
-        value: confirmPassword,
-        name: "confirmPassword",
-        label: "Confirm Password",
-      },
-      {
-        value: profilePictureFile ? profilePictureFile : null,
-        name: "image",
-        label: "Profile Picture",
-      },
-      { value: age, name: "age", label: "Age" },
-      { value: gender, name: "gender", label: "Gender" },
-      { value: address, name: "address", label: "Address" },
-      { value: phoneNumber, name: "phoneNumber", label: "Phone Number" },
-      {
-        value: verificationDocument,
-        name: "verificationDocument",
-        label: "Verification Document",
-      },
-    ];
-
-    // Check for missing fields
-    const missingFields = requiredFields.filter((field) => {
-      // Handle empty strings, null, undefined, empty arrays
-      if (Array.isArray(field.value)) {
-        return field.value.length === 0;
-      }
-      if (typeof field.value === "object" && field.value !== null) {
-        // Skip checking instanceof File
-        if ("name" in field.value && "size" in field.value) {
-          // It's a file object, treat as valid if present
-          return false;
-        }
-        return Object.values(field.value).every((val) => !val);
-      }
-      return (
-        !field.value || (typeof field.value === "string" && !field.value.trim())
-      );
-    });
-
-    if (missingFields.length > 0) {
-      console.log(
-        "Missing form data:",
-        missingFields.map((f) => f.name)
-      );
-      console.log("Current form state:", formData);
-
-      // Generate user-friendly error message
-      if (missingFields.length === 1) {
-        toast.error(`${missingFields[0].label} is required`);
-      } else {
-        const fieldNames = missingFields.map((f) => f.label).join(", ");
-        toast.error(`Please fill in: ${fieldNames}`);
-      }
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+    // Validate password match
+    if (data.password !== data.confirmPassword) {
+      setError("confirmPassword", {
+        type: "manual",
+        message: "Passwords do not match",
+      });
       return;
     }
 
-    const finalFormData = new FormData();
-    finalFormData.append("username", username);
-    finalFormData.append("email", email);
-    finalFormData.append("password", password);
-    finalFormData.append("age", age);
-    finalFormData.append("gender", gender);
-    finalFormData.append("address", address);
-    finalFormData.append("phoneNumber", phoneNumber);
-    finalFormData.append("verificationDocument", verificationDocument);
-    finalFormData.append(
-      "travelPreferences",
-      JSON.stringify(formData.travelPreferences)
-    );
+    // Append basic fields
+    formData.append("username", data.username);
+    formData.append("email", data.email);
+    formData.append("password", data.password);
+    formData.append("age", data.age);
+    formData.append("gender", data.gender);
+    formData.append("address", data.address);
+    formData.append("phoneNumber", data.phoneNumber);
 
-    console.log("Profile Picture File:", profilePictureFile);
-    if (profilePictureFile) {
-      finalFormData.append("image", profilePictureFile);
+    // Append files
+    if (data.image && data.image[0]) {
+      formData.append("image", data.image[0]);
+    }
+    if (data.verificationDocument && data.verificationDocument[0]) {
+      formData.append("verificationDocument", data.verificationDocument[0]);
     }
 
-    signup(finalFormData);
+    // Parse travel preferences
+    const travelPreferences = {
+      destinations: data.destinations.split(",").map((d) => d.trim()),
+      budgetRange: {
+        min: data.budgetMin,
+        max: data.budgetMax,
+      },
+      travelStyles: data.travelStyles || [],
+    };
 
-    // Reset form
-    // setFormData({
-    //   username: "",
-    //   email: "",
-    //   password: "",
-    //   age: "",
-    //   gender: "",
-    //   address: "",
-    //   phoneNumber: "",
-    //   image: "",
-    //   verificationDocument: "",
-    //   travelPreferences: {
-    //     destinations: [],
-    //     budgetRange: { min: "", max: "" },
-    //     travelStyles: [],
-    //   },
-    // // });
-    // setPassword("");
-    // setConfirmPassword("");
-    // setImagePreview(null);
-    // setProfilePictureFile(null);
+    formData.append("travelPreferences", JSON.stringify(travelPreferences));
+
+    // Call signup
+    signup(formData);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -174,11 +115,17 @@ const Register = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-      setProfilePictureFile(file);
-      setFormData((prev) => ({
-        ...prev,
-        image: file.name,
-      }));
+    }
+  };
+
+  const handleDocChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDocPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -192,184 +139,154 @@ const Register = () => {
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
                 SIGN UP
               </h2>
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Full Name */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {/* Username */}
                 <InputField
                   id="username"
                   icon={<User size={18} />}
                   placeholder="Enter your full username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
+                  register={register}
+                  name="username"
+                  error={errors.username?.message}
                 />
+
                 {/* Email */}
                 <InputField
                   id="email"
                   icon={<Mail size={18} />}
                   placeholder="Enter your email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  register={register}
+                  name="email"
+                  error={errors.email?.message}
                 />
+
                 {/* Password */}
                 <InputField
                   id="password"
                   icon={<Lock size={18} />}
                   placeholder="Create a password"
                   type="password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setFormData({ ...formData, password: e.target.value });
-                  }}
+                  register={register}
+                  name="password"
+                  error={errors.password?.message}
                 />
+
                 {/* Confirm Password */}
                 <InputField
                   id="confirmPassword"
                   icon={<CheckCircle size={18} />}
                   placeholder="Confirm your password"
                   type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  register={register}
+                  name="confirmPassword"
+                  error={errors.confirmPassword?.message}
                 />
+
                 {/* Age */}
                 <InputField
                   id="age"
                   icon={<Calendar size={18} />}
                   placeholder="Enter your age"
                   type="number"
-                  value={formData.age}
-                  onChange={(e) =>
-                    setFormData({ ...formData, age: e.target.value })
-                  }
+                  register={register}
+                  name="age"
+                  error={errors.age?.message}
                 />
+
                 {/* Gender */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Gender
                   </label>
-                  <div className="flex items-center gap-2">
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={(e) =>
-                        setFormData({ ...formData, gender: e.target.value })
-                      }
-                      className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                    <UserCircle size={18} className="text-gray-500" />
-                  </div>
+                  <select
+                    {...register("gender", { required: "Gender is required" })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                  {errors.gender && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.gender.message}
+                    </span>
+                  )}
                 </div>
+
                 {/* Address */}
                 <InputField
                   id="address"
                   icon={<MapPin size={18} />}
                   placeholder="Enter your address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
+                  register={register}
+                  name="address"
+                  error={errors.address?.message}
                 />
+
                 {/* Phone Number */}
                 <InputField
                   id="phoneNumber"
                   icon={<Phone size={18} />}
                   placeholder="Enter your phone number"
-                  value={formData.phoneNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phoneNumber: e.target.value })
-                  }
+                  register={register}
+                  name="phoneNumber"
+                  error={errors.phoneNumber?.message}
                 />
+
                 {/* Profile Picture Upload */}
                 <div>
-                  <label
-                    htmlFor="image"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Profile Picture
                   </label>
                   <Input
                     id="image"
                     type="file"
                     accept="image/jpeg, image/png, image/webp"
-                    onChange={handleImageChange}
+                    {...register("image", { required: "Profile picture is required" })}
                   />
                   {imagePreview && (
-                    <div className="mt-2">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-32 object-cover rounded-md"
-                      />
-                    </div>
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="mt-2 w-full h-32 object-cover rounded-md"
+                    />
+                  )}
+                  {errors.image && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.image.message}
+                    </span>
                   )}
                 </div>
 
-                {/* Travel Destinations */}
+                {/* Destinations */}
                 <InputField
                   id="destinations"
                   icon={<MapPin size={18} />}
                   placeholder="Enter destinations (comma-separated)"
-                  value={formData.travelPreferences.destinations.join(", ")}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      travelPreferences: {
-                        ...formData.travelPreferences,
-                        destinations: e.target.value
-                          .split(",")
-                          .map((dest) => dest.trim()),
-                      },
-                    })
-                  }
+                  register={register}
+                  name="destinations"
+                  error={errors.destinations?.message}
                 />
 
                 {/* Budget Range */}
                 <div className="flex gap-4">
                   <InputField
                     id="budgetMin"
-                    icon={<File size={18} />}
+                    icon={<LucideFile size={18} />}
                     placeholder="Min Budget"
                     type="number"
-                    value={formData.travelPreferences.budgetRange.min}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        travelPreferences: {
-                          ...formData.travelPreferences,
-                          budgetRange: {
-                            ...formData.travelPreferences.budgetRange,
-                            min: e.target.value,
-                          },
-                        },
-                      })
-                    }
+                    register={register}
+                    name="budgetMin"
+                    error={errors.budgetMin?.message}
                   />
                   <InputField
                     id="budgetMax"
-                    icon={<File size={18} />}
+                    icon={<LucideFile size={18} />}
                     placeholder="Max Budget"
                     type="number"
-                    value={formData.travelPreferences.budgetRange.max}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        travelPreferences: {
-                          ...formData.travelPreferences,
-                          budgetRange: {
-                            ...formData.travelPreferences.budgetRange,
-                            max: e.target.value,
-                          },
-                        },
-                      })
-                    }
+                    register={register}
+                    name="budgetMax"
+                    error={errors.budgetMax?.message}
                   />
                 </div>
 
@@ -378,47 +295,49 @@ const Register = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Travel Styles
                   </label>
-                  <div className="flex items-center gap-2">
-                    <select
-                      multiple
-                      name="travelStyles"
-                      value={formData.travelPreferences.travelStyles}
-                      onChange={(e) => {
-                        const selectedOptions = Array.from(
-                          e.target.selectedOptions
-                        ).map((option) => option.value);
-                        setFormData({
-                          ...formData,
-                          travelPreferences: {
-                            ...formData.travelPreferences,
-                            travelStyles: selectedOptions,
-                          },
-                        });
-                      }}
-                      className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Family">Family</option>
-                      <option value="Luxury">Luxury</option>
-                      <option value="Adventure">Adventure</option>
-                      <option value="Backpacker">Backpacker</option>
-                    </select>
-                    <User size={18} className="text-gray-500" />
-                  </div>
+                  <select
+                    multiple
+                    {...register("travelStyles")}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Family">Family</option>
+                    <option value="Luxury">Luxury</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Backpacker">Backpacker</option>
+                  </select>
+                  {errors.travelStyles && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.travelStyles.message}
+                    </span>
+                  )}
                 </div>
 
                 {/* Verification Document */}
-                <InputField
-                  id="verificationDocument"
-                  icon={<File size={18} />}
-                  placeholder="Verification document URL"
-                  value={formData.verificationDocument}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      verificationDocument: e.target.value,
-                    })
-                  }
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Verification Document
+                  </label>
+                  <Input
+                    id="verificationDocument"
+                    type="file"
+                    accept="image/jpeg, image/png, image/webp"
+                    {...register("verificationDocument", {
+                      required: "Verification document is required",
+                    })}
+                  />
+                  {docPreview && (
+                    <img
+                      src={docPreview}
+                      alt="Preview"
+                      className="mt-2 w-full scale-50 object-cover rounded-md"
+                    />
+                  )}
+                  {errors.verificationDocument && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.verificationDocument.message}
+                    </span>
+                  )}
+                </div>
 
                 <button
                   type="submit"
@@ -447,21 +366,25 @@ const Register = () => {
 };
 
 // Reusable input field component
+type InputFieldProps = {
+  id: string;
+  icon: React.ReactNode;
+  placeholder: string;
+  type?: string;
+  register: any;
+  name: string;
+  error?: string;
+};
+
 const InputField = ({
   id,
   icon,
   placeholder,
   type = "text",
-  value,
-  onChange,
-}: {
-  id: string;
-  icon: React.ReactNode;
-  placeholder: string;
-  type?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}) => (
+  register,
+  name,
+  error,
+}: InputFieldProps) => (
   <div>
     <label
       htmlFor={id}
@@ -477,11 +400,13 @@ const InputField = ({
         id={id}
         type={type}
         placeholder={placeholder}
-        className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-travely-blue"
-        value={value}
-        onChange={onChange}
+        className={`w-full pl-10 px-4 py-2 border ${
+          error ? "border-red-500" : "border-gray-300"
+        } rounded-md focus:outline-none focus:ring-2 focus:ring-travely-blue`}
+        {...register(name, { required: `${name} is required` })}
       />
     </div>
+    {error && <span className="text-red-500 text-xs mt-1 block">{error}</span>}
   </div>
 );
 

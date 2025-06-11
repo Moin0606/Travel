@@ -34,9 +34,17 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(morgan("dev"));
 app.use(cookieParser());
+app.use((err, req, res, next) => {
+  console.error("🚨 Middleware error:", err);
+  if (err.code === "LIMIT_UNEXPECTED_FILE") {
+    return res.status(400).json({ message: "Too many files uploaded or invalid field name" });
+  }
+  res.status(500).json({ message: "Internal server error" });
+});
 
 // Routes
 app.use("/api/users", userRoutes);

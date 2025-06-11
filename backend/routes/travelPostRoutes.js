@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 const travelPostController = require("../controllers/travelPostController");
 const protect = require("../middleware/authMiddleware");
-const cloudinaryUploadMiddleware = require('../middleware/cloudinary');
+const cloudinaryUpload = require('../middleware/cloudinary');
+const upload = require('../middleware/uploadConfig');
 /**
  * @route   POST /posts
  * @desc    Create a new travel post.
@@ -33,7 +34,7 @@ const cloudinaryUploadMiddleware = require('../middleware/cloudinary');
  *          - createdAt {string}: The timestamp when the post was created.
  *          - updatedAt {string}: The timestamp when the post was last updated.
  */
-router.post("/", protect, cloudinaryUploadMiddleware, travelPostController.createTravelPost);
+router.post("/", protect, upload, cloudinaryUpload, travelPostController.createTravelPost);
 
 /**
  * @route   GET /posts
